@@ -1,0 +1,3 @@
+# Die App enthält keine öffentlichen Inhalte, die in Suchmaschinen gehören.
+User-agent: *
+Disallow: /

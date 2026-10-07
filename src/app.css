@@ -1,0 +1,199 @@
+/* Systemschriften: nichts wird von fremden Servern geladen, keine Lizenzfragen. */
+:root {
+	--color-text: #1a1a1a;
+	--color-muted: #555;
+	--color-bg: #ffffff;
+	--color-surface: #f2f5f8;
+	--color-primary: #0b4f8a; /* Kontrast auf Weiss 8.4:1 (WCAG AA verlangt 4.5:1) */
+	--color-danger: #b00020; /* 7.3:1 */
+	--color-warning: #8a4b00; /* 6.8:1 */
+	--color-border: #767676; /* 4.5:1, Formularrahmen brauchen 3:1 */
+	--radius: 8px;
+
+	font-family:
+		system-ui,
+		-apple-system,
+		'Segoe UI',
+		Roboto,
+		sans-serif;
+	line-height: 1.5;
+	color: var(--color-text);
+	background: var(--color-bg);
+}
+
+body {
+	margin: 0;
+}
+
+a {
+	color: var(--color-primary);
+}
+
+/* Sichtbarer Fokus für Tastaturbedienung */
+:focus-visible {
+	outline: 3px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+/* Text nur für Screenreader */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.skip-link {
+	position: absolute;
+	left: 0.5rem;
+	top: -3rem;
+	padding: 0.5rem 1rem;
+	background: var(--color-primary);
+	color: #fff;
+	border-radius: var(--radius);
+}
+
+.skip-link:focus {
+	top: 0.5rem;
+}
+
+/* Knöpfe (auch Links, die wie Knöpfe aussehen) */
+.button {
+	display: inline-block;
+	padding: 0.6rem 1rem;
+	border: 2px solid var(--color-primary);
+	border-radius: var(--radius);
+	background: var(--color-primary);
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.button.secondary {
+	background: transparent;
+	color: var(--color-primary);
+}
+
+.button.danger {
+	border-color: var(--color-danger);
+	background: var(--color-danger);
+}
+
+.button.small {
+	padding: 0.25rem 0.6rem;
+	font-size: 0.9rem;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin: 1rem 0;
+}
+
+/* Formulare */
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	margin-bottom: 1rem;
+}
+
+.field label,
+fieldset legend {
+	font-weight: 600;
+}
+
+input,
+select {
+	font: inherit;
+	padding: 0.5rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	background: #fff;
+	color: var(--color-text);
+	max-width: 100%;
+}
+
+input[aria-invalid='true'],
+select[aria-invalid='true'] {
+	border: 2px solid var(--color-danger);
+}
+
+fieldset {
+	border: none;
+	padding: 0;
+	margin: 0 0 1rem;
+}
+
+.radio-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+}
+
+.hint {
+	color: var(--color-muted);
+	font-size: 0.9rem;
+}
+
+.error {
+	color: var(--color-danger);
+	font-size: 0.9rem;
+	font-weight: 600;
+}
+
+.grid-2 {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+	column-gap: 1rem;
+}
+
+/* Tabellen: auf schmalen Bildschirmen seitlich scrollbar statt abgeschnitten */
+.table-wrap {
+	overflow-x: auto;
+}
+
+table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+th,
+td {
+	text-align: left;
+	padding: 0.5rem;
+	border-bottom: 1px solid var(--color-border);
+	vertical-align: top;
+}
+
+td.num,
+th.num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.card {
+	background: var(--color-surface);
+	border-radius: var(--radius);
+	padding: 0.75rem 1rem;
+	margin-bottom: 0.75rem;
+}
+
+.badge {
+	display: inline-block;
+	padding: 0 0.5rem;
+	border: 1px solid var(--color-primary);
+	border-radius: 999px;
+	font-size: 0.85rem;
+	color: var(--color-primary);
+}
+
+.warning {
+	color: var(--color-warning);
+	font-weight: 600;
+}
