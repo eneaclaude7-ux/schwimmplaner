@@ -1,7 +1,7 @@
 // Alle Schreibzugriffe auf die lokale Datenbank an einem Ort.
 import { createBackup, type Backup } from './backup';
 import { db } from './db';
-import type { Id, IsoDate } from './model';
+import type { Id, IsoDate, Split } from './model';
 import type { CompetitionValue, RaceValue } from './validation';
 
 function now(): string {
@@ -56,7 +56,11 @@ export async function deleteCompetition(id: Id): Promise<void> {
 	});
 }
 
-export async function saveRace(value: RaceValue, competitionId: Id, id?: Id): Promise<Id> {
+export async function saveRace(
+	value: RaceValue & { splits: Split[] },
+	competitionId: Id,
+	id?: Id
+): Promise<Id> {
 	const existing = id ? await db.races.get(id) : undefined;
 	const athleteId = existing?.athleteId ?? (await ensureAthlete());
 	const saved = {
@@ -64,8 +68,6 @@ export async function saveRace(value: RaceValue, competitionId: Id, id?: Id): Pr
 		id: existing?.id ?? newId(),
 		athleteId,
 		competitionId,
-		// Splits kommen in Etappe 4; vorhandene bleiben beim Bearbeiten erhalten
-		splits: existing?.splits ?? [],
 		createdAt: existing?.createdAt ?? now(),
 		updatedAt: now()
 	};

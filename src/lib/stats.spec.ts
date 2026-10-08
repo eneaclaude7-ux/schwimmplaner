@@ -119,14 +119,19 @@ describe('formatPercent', () => {
 describe('racesToCsv', () => {
 	it('schreibt Kopfzeile, Semikolons und Bestzeit-Markierung', () => {
 		const csv = racesToCsv(
-			[race('x', 'kb', '2026-10-10', 6920, { target: 7000 })],
+			[
+				race('x', 'kb', '2026-10-10', 6920, {
+					target: 7000,
+					splits: [{ distance: 50, cumulative: 3310 }]
+				})
+			],
 			competitions,
 			seasons
 		);
-		expect(csv.startsWith('﻿Datum;Wettkampf;')).toBe(true);
+		expect(csv.startsWith('\uFEFFDatum;Wettkampf;')).toBe(true);
 		const line = csv.trim().split('\r\n')[1];
 		expect(line).toBe(
-			'10.10.2026;kb;Chur;Kurzbahn (25 m);2026/27;Brust;100;geschwommen;1:10.00;1:09.20;−0.80 s;ja;ja'
+			'10.10.2026;kb;Chur;Kurzbahn (25 m);2026/27;Brust;100;geschwommen;1:10.00;1:09.20;−0.80 s;ja;ja;50 m 33.10'
 		);
 	});
 

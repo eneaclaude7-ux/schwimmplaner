@@ -4,7 +4,7 @@ Eine Web-App, mit der Nachwuchsschwimmer, Eltern und Trainer Wettkämpfe planen 
 
 **Positionierung:** Resultat-Plattformen zeigen, was war. Diese App zeigt, was als Nächstes kommt und was man aus einem Rennen lernt. Sie ist keine Resultatdatenbank.
 
-**Stand:** Phase 1, Etappe 3 fertig. Wettkämpfe, Läufe und Saisons lassen sich erfassen, sichern und löschen. Die Seite "Auswertung" zeigt Bestzeit, Saisonbestzeit und Verbesserungen, getrennt nach Kurz- und Langbahn. Die App ist installierbar und läuft offline.
+**Stand:** Phase 1, Etappe 4 fertig. Wettkämpfe, Läufe und Saisons lassen sich erfassen, sichern und löschen. Die Seite "Auswertung" zeigt Bestzeit, Saisonbestzeit und Verbesserungen, getrennt nach Kurz- und Langbahn. Zu jedem Lauf lassen sich Zwischenzeiten erfassen, mit Lap-Zeiten, Anteilen und Positive/Negative Split. Die App ist installierbar und läuft offline.
 
 **App:** <https://eneaclaude7-ux.github.io/schwimmplaner/>
 
@@ -25,7 +25,7 @@ Reihenfolge der Etappen:
 1. ✓ Wettkämpfe und Läufe erfassen, Saisons, Backup, alles löschen (MVP 1, 2)
 2. ✓ GitHub Pages, installierbar, offline, Hinweis bei neuer Version
 3. ✓ Abweichung, Bestzeit, Saisonbestzeit, Verbesserung, Filter nach Bahnlänge, CSV-Export (MVP 3, 5, 6)
-4. Splits erfassen und auswerten (MVP 7, Teil)
+4. ✓ Splits erfassen und auswerten (MVP 7, Teil)
 5. Entwicklungsdiagramm pro Strecke mit Tabelle als Alternative (MVP 4)
 6. Split-Diagramm und Vergleich zweier Rennen (MVP 7, Rest)
 7. Datenschutzseite, Seite "Lizenzen", Check auf Barrierefreiheit

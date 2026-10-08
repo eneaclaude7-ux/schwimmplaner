@@ -11,8 +11,10 @@
 		type Stroke
 	} from '#lib/model.ts';
 	import { saveRace } from '#lib/repo.ts';
-	import { formatTime } from '#lib/time.ts';
+	import { detectInterval, parseSplits, splitsToValues, type SplitInput } from '#lib/splits.ts';
+	import { formatTime, parseTime } from '#lib/time.ts';
 	import { validateRace, type RaceInput } from '#lib/validation.ts';
+	import SplitFields from './SplitFields.svelte';
 
 	interface Props {
 		competition: Competition;
@@ -37,6 +39,30 @@
 		result: initial?.result !== undefined ? formatTime(initial.result) : ''
 	});
 	let errors = $state<Partial<Record<keyof RaceInput, string>>>({});
+
+	// Zwischenzeiten: gespeichert kumuliert, im Formular wahlweise als Laps
+	function freshSplits(distance: number): SplitInput {
+		return {
+			mode: 'cumulative',
+			interval: detectInterval([], distance, meet.course) ?? 50,
+			values: {}
+		};
+	}
+	let splitInput = $state<SplitInput>(
+		initial && initial.splits.length > 0
+			? (() => {
+					const interval = detectInterval(initial.splits, initial.distance, meet.course) ?? 50;
+					const values = splitsToValues(
+						initial.splits,
+						{ mode: 'cumulative', interval },
+						initial.distance
+					);
+					return { mode: 'cumulative' as const, interval, values };
+				})()
+			: freshSplits(initial?.distance ?? 0)
+	);
+	let splitErrors = $state<Record<number, string>>({});
+	const resultHs = $derived(parseTime(form.result) ?? undefined);
 	let saving = $state(false);
 
 	const days = $derived(datesInRange(competition.startDate, competition.endDate));
@@ -55,16 +81,25 @@
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		const result = validateRace(form, competition);
-		if (!result.ok) {
-			errors = result.errors;
-			const first = Object.keys(result.errors)[0];
+		// Zwischenzeiten gibt es nur bei einem geschwommenen Lauf
+		const splits =
+			result.ok && result.value.status === 'finished'
+				? parseSplits(splitInput, result.value.distance, result.value.result)
+				: { ok: true as const, splits: [], warnings: [] };
+		if (!result.ok || !splits.ok) {
+			errors = result.ok ? {} : result.errors;
+			splitErrors = splits.ok ? {} : splits.errors;
+			const first = result.ok
+				? `split-${Object.keys(splitErrors)[0]}`
+				: Object.keys(result.errors)[0];
 			document.getElementById(`${prefix}-${first}`)?.focus();
 			return;
 		}
 		errors = {};
+		splitErrors = {};
 		saving = true;
 		try {
-			await saveRace(result.value, competition.id, race?.id);
+			await saveRace({ ...result.value, splits: splits.splits }, competition.id, race?.id);
 			onsaved();
 		} finally {
 			saving = false;
@@ -81,7 +116,10 @@
 				bind:value={form.stroke}
 				onchange={() => {
 					// Strecke zurücksetzen, wenn es sie für die neue Lage nicht gibt (z. B. 1500 m Brust)
-					if (!distances.includes(Number(form.distance))) form.distance = '';
+					if (!distances.includes(Number(form.distance))) {
+						form.distance = '';
+						splitInput = freshSplits(0);
+					}
 				}}
 				aria-invalid={!!errors.stroke}
 				aria-describedby={errors.stroke ? `${prefix}-stroke-error` : undefined}
@@ -99,6 +137,11 @@
 			<select
 				id="{prefix}-distance"
 				bind:value={form.distance}
+				onchange={() => {
+					// Andere Strecke, andere Zwischenzeiten
+					splitInput = freshSplits(Number(form.distance));
+					splitErrors = {};
+				}}
 				disabled={!form.stroke}
 				aria-invalid={!!errors.distance}
 				aria-describedby={errors.distance ? `${prefix}-distance-error` : undefined}
@@ -170,6 +213,17 @@
 			/>
 			{#if errors.result}<p id="{prefix}-result-error" class="error">{errors.result}</p>{/if}
 		</div>
+
+		{#if form.distance}
+			<SplitFields
+				distance={Number(form.distance)}
+				course={competition.course}
+				result={resultHs}
+				bind:input={splitInput}
+				bind:errors={splitErrors}
+				{prefix}
+			/>
+		{/if}
 	{/if}
 
 	<p id="{prefix}-time-hint" class="hint">

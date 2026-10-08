@@ -9,6 +9,7 @@ import {
 	type Season
 } from './model';
 import { seasonForDate } from './seasons';
+import { splitsText } from './splits';
 import { bestMarks, buildHistories } from './stats';
 import { formatDiff, formatTime } from './time';
 
@@ -35,7 +36,8 @@ const HEADER = [
 	'Endzeit',
 	'Abweichung vom Ziel',
 	'Persönliche Bestzeit',
-	'Saisonbestzeit'
+	'Saisonbestzeit',
+	'Zwischenzeiten'
 ];
 
 /** Alle Läufe als CSV-Text, chronologisch. Mit BOM, damit Excel die Umlaute richtig liest. */
@@ -63,10 +65,11 @@ export function racesToCsv(races: Race[], competitions: Competition[], seasons: 
 					finished ? formatTime(race.result!) : '',
 					finished && race.target !== undefined ? formatDiff(race.result! - race.target) : '',
 					marks.pb.has(race.id) ? 'ja' : '',
-					marks.sb.has(race.id) ? 'ja' : ''
+					marks.sb.has(race.id) ? 'ja' : '',
+					splitsText(race.splits)
 				]
 			];
 		});
 
-	return '﻿' + [HEADER, ...rows].map((row) => row.map(field).join(';')).join('\r\n') + '\r\n';
+	return '\uFEFF' + [HEADER, ...rows].map((row) => row.map(field).join(';')).join('\r\n') + '\r\n';
 }

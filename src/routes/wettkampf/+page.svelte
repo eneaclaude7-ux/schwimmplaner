@@ -5,6 +5,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import RaceForm from '#lib/components/RaceForm.svelte';
+	import SplitTable from '#lib/components/SplitTable.svelte';
 	import { db } from '#lib/db.ts';
 	import { daysBetween, formatDate, formatDateRange, relativeDays, todayIso } from '#lib/dates.ts';
 	import { COURSE_LABEL, raceLabel, STATUS_LABEL, type Id, type Race } from '#lib/model.ts';
@@ -141,6 +142,12 @@
 							<dd>{deviation(race)}</dd>
 						</div>
 					</dl>
+					{#if race.status === 'finished' && race.result !== undefined && race.splits.length > 0}
+						<details>
+							<summary>Zwischenzeiten</summary>
+							<SplitTable splits={race.splits} distance={race.distance} result={race.result} />
+						</details>
+					{/if}
 					<div class="row-actions">
 						<button
 							class="button secondary small"
@@ -227,6 +234,16 @@
 		margin: 0;
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
+	}
+
+	details {
+		margin-bottom: 0.5rem;
+	}
+
+	summary {
+		cursor: pointer;
+		color: var(--color-primary);
+		font-weight: 600;
 	}
 
 	.row-actions {
