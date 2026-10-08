@@ -12,7 +12,7 @@ Eine Web-App, mit der Nachwuchsschwimmer, Eltern und Trainer Wettkämpfe planen 
 
 ## MVP
 
-- [x] 1. Wettkampfkalender: Name, Datum, Ort, Meldeschluss, Bahnlänge
+- [x] 1. Wettkampfkalender: Name, Datum, Ort, Meldeschluss, Bahnlänge. Monatsansicht wie in Notion (Balken über mehrere Tage, Farbe nach Bahnlänge, Meldeschluss gestrichelt) und Liste
 - [x] 2. Läufe pro Wettkampf: Disziplin, Strecke, Zielzeit, Resultat
 - [x] 3. Automatisch berechnet: Abweichung vom Ziel, persönliche Bestzeit, Saisonbestzeit
 - [ ] 4. Entwicklung pro Strecke als Liniendiagramm, mit markierter Bestzeit

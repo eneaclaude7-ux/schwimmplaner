@@ -37,6 +37,16 @@ export function formatDateRange(start: IsoDate, end?: IsoDate): string {
 	return end && end !== start ? `${formatDate(start)} – ${formatDate(end)}` : formatDate(start);
 }
 
+/** Datum plus `days` Tage (auch negativ) */
+export function addDays(iso: IsoDate, days: number): IsoDate {
+	return new Date(toUtc(iso) + days * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** Wochentag mit Montag = 0 bis Sonntag = 6 */
+export function weekday(iso: IsoDate): number {
+	return (new Date(toUtc(iso)).getUTCDay() + 6) % 7;
+}
+
 /** Alle Tage von `start` bis `end` (für mehrtägige Wettkämpfe) */
 export function datesInRange(start: IsoDate, end?: IsoDate): IsoDate[] {
 	const count = end ? daysBetween(start, end) + 1 : 1;

@@ -8,6 +8,11 @@
 	--color-danger: #b00020; /* 7.3:1 */
 	--color-warning: #8a4b00; /* 6.8:1 */
 	--color-border: #767676; /* 4.5:1, Formularrahmen brauchen 3:1 */
+	--color-line: #e2e2e2; /* nur Raster im Kalender, keine Bedienelemente */
+	--color-weekend: #fafafa;
+	--color-today: #c62828; /* weisse Schrift darauf 5.6:1 */
+	--color-scm: #dbe8f6; /* Kurzbahn, Text darauf 14:1 */
+	--color-lcm: #d9f0e1; /* Langbahn, Text darauf 14:1 */
 	--radius: 8px;
 
 	font-family:

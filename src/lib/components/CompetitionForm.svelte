@@ -1,22 +1,24 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import type { Competition, Id } from '#lib/model.ts';
+	import type { Competition, Id, IsoDate } from '#lib/model.ts';
 	import { saveCompetition } from '#lib/repo.ts';
 	import { validateCompetition, type CompetitionInput } from '#lib/validation.ts';
 
 	interface Props {
 		/** Leer = neuer Wettkampf */
 		competition?: Competition;
+		/** Erster Tag für einen neuen Wettkampf, z. B. aus dem Kalender */
+		startDate?: IsoDate;
 		onsaved: (id: Id) => void;
 	}
 
-	let { competition, onsaved }: Props = $props();
+	let { competition, startDate, onsaved }: Props = $props();
 
 	// Startwerte einmal aus dem Wettkampf übernehmen; danach gehört der Zustand dem Formular
 	const initial = untrack(() => competition);
 	let form = $state<CompetitionInput>({
 		name: initial?.name ?? '',
-		startDate: initial?.startDate ?? '',
+		startDate: initial?.startDate ?? untrack(() => startDate) ?? '',
 		endDate: initial?.endDate ?? '',
 		location: initial?.location ?? '',
 		entryDeadline: initial?.entryDeadline ?? '',
