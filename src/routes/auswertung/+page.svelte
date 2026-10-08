@@ -14,6 +14,7 @@
 		type Entry
 	} from '#lib/stats.ts';
 	import { formatDiff, formatTime } from '#lib/time.ts';
+	import ProgressChart from '#lib/components/ProgressChart.svelte';
 
 	const data = liveQuery(async () => ({
 		races: await db.races.toArray(),
@@ -144,6 +145,15 @@
 			{@const pb = personalBest(h)!}
 			<section aria-labelledby={h.key}>
 				<h2 id={h.key}>{raceLabel(h)}, {COURSE_LABEL[h.course]}</h2>
+				{#if h.entries.length >= 2}
+					<ProgressChart
+						entries={h.entries}
+						best={pb}
+						label="{raceLabel(h)}, {COURSE_LABEL[h.course]}"
+					/>
+				{:else}
+					<p class="hint">Ab zwei Zeiten zeigt hier ein Diagramm die Entwicklung.</p>
+				{/if}
 				<div class="table-wrap">
 					<table>
 						<thead>
