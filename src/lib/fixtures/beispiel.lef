@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Selbst geschriebene Testdatei. Wettkampf, Vereine und Personen sind erfunden. -->
+<LENEX version="3.0">
+  <CONSTRUCTOR name="Schwimmplaner Testdaten" version="1.0">
+    <CONTACT name="Schwimmplaner" />
+  </CONSTRUCTOR>
+  <MEETS>
+    <MEET name="Testmeeting Musterstadt" city="Musterstadt" nation="SUI" course="SCM" deadline="2026-11-01">
+      <POOL lanemax="6" />
+      <SESSIONS>
+        <SESSION number="1" date="2026-11-14" daytime="09:00">
+          <EVENTS>
+            <EVENT eventid="1" number="1" gender="X" round="TIM">
+              <SWIMSTYLE distance="100" relaycount="1" stroke="BREAST" />
+            </EVENT>
+            <EVENT eventid="2" number="2" gender="X" round="TIM">
+              <SWIMSTYLE distance="50" relaycount="1" stroke="FREE" />
+            </EVENT>
+            <EVENT eventid="3" number="3" gender="X" round="TIM">
+              <SWIMSTYLE distance="25" relaycount="1" stroke="FREE" />
+            </EVENT>
+            <EVENT eventid="4" number="4" gender="X" round="TIM">
+              <SWIMSTYLE distance="50" relaycount="4" stroke="FREE" />
+            </EVENT>
+          </EVENTS>
+        </SESSION>
+        <SESSION number="2" date="2026-11-15" daytime="09:00">
+          <EVENTS>
+            <EVENT eventid="5" number="5" gender="X" round="TIM">
+              <SWIMSTYLE distance="200" relaycount="1" stroke="MEDLEY" />
+            </EVENT>
+            <EVENT eventid="6" number="6" gender="X" round="TIM">
+              <SWIMSTYLE distance="100" relaycount="1" stroke="BACK" />
+            </EVENT>
+            <EVENT eventid="7" number="7" gender="X" round="TIM">
+              <SWIMSTYLE distance="50" relaycount="1" stroke="FLY" />
+            </EVENT>
+          </EVENTS>
+        </SESSION>
+      </SESSIONS>
+      <CLUBS>
+        <CLUB name="Schwimmclub Bärenstadt" code="SCB" nation="SUI">
+          <ATHLETES>
+            <ATHLETE athleteid="101" lastname="Muster" firstname="Max" birthdate="2011-03-02" gender="M">
+              <RESULTS>
+                <RESULT resultid="1" eventid="1" swimtime="00:01:09.20" place="1">
+                  <SPLITS>
+                    <SPLIT distance="50" swimtime="00:00:32.60" />
+                  </SPLITS>
+                </RESULT>
+                <RESULT resultid="2" eventid="2" swimtime="00:00:28.15" place="2">
+                  <SPLITS>
+                    <SPLIT distance="25" swimtime="00:00:13.40" />
+                  </SPLITS>
+                </RESULT>
+                <RESULT resultid="3" eventid="3" swimtime="00:00:13.10" place="1" />
+                <RESULT resultid="4" eventid="5" swimtime="00:02:31.45" place="3">
+                  <SPLITS>
+                    <SPLIT distance="100" swimtime="00:01:12.30" />
+                    <SPLIT distance="50" swimtime="00:00:33.10" />
+                    <SPLIT distance="150" swimtime="00:01:57.80" />
+                    <SPLIT distance="200" swimtime="00:02:31.45" />
+                  </SPLITS>
+                </RESULT>
+                <RESULT resultid="5" eventid="6" swimtime="00:01:15.00" status="DSQ" />
+                <RESULT resultid="6" eventid="7" swimtime="NT" status="DNS" />
+              </RESULTS>
+            </ATHLETE>
+          </ATHLETES>
+          <RELAYS>
+            <RELAY number="1" gender="X">
+              <RESULTS>
+                <RESULT resultid="7" eventid="4" swimtime="00:02:01.00">
+                  <RELAYPOSITIONS>
+                    <RELAYPOSITION athleteid="101" number="1" />
+                  </RELAYPOSITIONS>
+                </RESULT>
+              </RESULTS>
+            </RELAY>
+          </RELAYS>
+        </CLUB>
+        <CLUB name="Schwimmverein Testdorf" code="SVT" nation="SUI">
+          <ATHLETES>
+            <ATHLETE athleteid="201" lastname="Beispiel" firstname="Lea" birthdate="2012-07-09" gender="F">
+              <RESULTS>
+                <RESULT resultid="8" eventid="1" swimtime="00:01:20.00" place="2" />
+                <RESULT resultid="9" eventid="6" swimtime="NT" status="SICK" />
+              </RESULTS>
+            </ATHLETE>
+            <ATHLETE athleteid="202" lastname="Probe" firstname="Tom" birthdate="2013-01-01" gender="M">
+              <ENTRIES>
+                <ENTRY eventid="2" entrytime="00:00:35.00" />
+              </ENTRIES>
+            </ATHLETE>
+          </ATHLETES>
+        </CLUB>
+      </CLUBS>
+    </MEET>
+  </MEETS>
+</LENEX>

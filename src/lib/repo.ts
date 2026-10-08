@@ -1,6 +1,7 @@
 // Alle Schreibzugriffe auf die lokale Datenbank an einem Ort.
 import { createBackup, type Backup } from './backup';
 import { db } from './db';
+import type { ImportPlan } from './lenex';
 import type { Id, IsoDate, Split } from './model';
 import type { CompetitionValue, RaceValue } from './validation';
 
@@ -77,6 +78,42 @@ export async function saveRace(
 
 export async function deleteRace(id: Id): Promise<void> {
 	await db.races.delete(id);
+}
+
+/** Speichert einen Lenex-Import (siehe planImport). Alles oder nichts (eine Transaktion). */
+export async function saveImport(plan: ImportPlan): Promise<Id> {
+	return db.transaction('rw', db.athletes, db.competitions, db.races, async () => {
+		const athleteId = await ensureAthlete();
+		const competitionId = plan.existing?.id ?? newId();
+		if (!plan.existing) {
+			await db.competitions.add({
+				...plan.competition,
+				id: competitionId,
+				createdAt: now(),
+				updatedAt: now()
+			});
+		} else if (plan.extendTo) {
+			await db.competitions.update(competitionId, { endDate: plan.extendTo, updatedAt: now() });
+		}
+
+		for (const { race, action, existingId } of plan.races) {
+			if (action === 'new') {
+				await db.races.add({
+					...race,
+					id: newId(),
+					athleteId,
+					competitionId,
+					createdAt: now(),
+					updatedAt: now()
+				});
+			} else if (action === 'complete' && existingId) {
+				// Die Zielzeit des geplanten Laufs bleibt
+				const { date, status, result, splits } = race;
+				await db.races.update(existingId, { date, status, result, splits, updatedAt: now() });
+			}
+		}
+		return competitionId;
+	});
 }
 
 export async function addSeason(name: string, startDate: IsoDate): Promise<Id> {

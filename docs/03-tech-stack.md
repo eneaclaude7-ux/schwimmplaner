@@ -14,7 +14,8 @@
 | Lokale Datenbank | Dexie.js (IndexedDB)                                                             |
 | PWA / Offline    | eigener Service Worker (in SvelteKit eingebaut) und Web-App-Manifest             |
 | Diagramme        | eigene SVG-Komponenten mit d3-scale, dazu immer eine Tabelle als Textalternative |
-| Tests            | Vitest                                                                           |
+| Lenex-Import     | XML-Parser des Browsers (DOMParser), fflate zum Entpacken von `.lxf`             |
+| Tests            | Vitest, für den Lenex-Test mit jsdom als DOM-Umgebung                            |
 | Hosting Phase 1  | GitHub Pages                                                                     |
 | Phase 2          | Serverteil in SvelteKit; Datenbank und Schweizer Hoster werden dann entschieden  |
 
@@ -28,6 +29,7 @@
 | Dexie.js               | im Browser              | nein, speichert nur lokal                                                                                                    |
 | eigener Service Worker | im Browser              | nein, cached nur die App-Dateien                                                                                             |
 | d3-scale               | im Browser              | nein                                                                                                                         |
+| fflate                 | im Browser              | nein, entpackt nur die gewählte Lenex-Datei                                                                                  |
 | GitHub Pages           | Server von GitHub (USA) | ja: Beim Abruf der Seite sieht GitHub technisch die IP-Adresse und muss sie verarbeiten. Gehört in die Datenschutzerklärung. |
 
 Es gibt keine Tracking-SDKs, keine CDNs und keine externen Schriften. Alles wird mit der App ausgeliefert.

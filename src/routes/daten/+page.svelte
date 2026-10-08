@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { liveQuery } from 'dexie';
+	import LenexImport from '#lib/components/LenexImport.svelte';
 	import { parseBackup } from '#lib/backup.ts';
 	import { racesToCsv } from '#lib/csv.ts';
 	import { db } from '#lib/db.ts';
@@ -178,6 +179,11 @@
 		{#if seasonError}<p id="season-error" class="error">{seasonError}</p>{/if}
 		<button class="button" type="submit">Saison hinzufügen</button>
 	</form>
+</section>
+
+<section aria-labelledby="lenex">
+	<h2 id="lenex">Resultate einlesen (Lenex)</h2>
+	<LenexImport />
 </section>
 
 <section aria-labelledby="backup">

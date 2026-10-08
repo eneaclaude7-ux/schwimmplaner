@@ -36,6 +36,15 @@
 	übertragen, auch nicht an uns. Darum können wir sie weder sehen noch wiederherstellen.
 </p>
 
+<h2>Resultate aus einer Lenex-Datei</h2>
+<p>
+	Eine Lenex-Datei enthält die Resultate aller Teilnehmenden eines Wettkampfs, mit Name, Jahrgang
+	und Verein. Die App liest die Datei nur in deinem Browser, sie wird nirgends hochgeladen. Du
+	wählst eine Person aus. Gespeichert werden nur deren Läufe (Lage, Strecke, Tag, Endzeit, Status,
+	Zwischenzeiten) und die Angaben zum Wettkampf. Name, Jahrgang und Verein werden nicht gespeichert.
+	Sobald du speicherst oder abbrichst, verwirft die App den Inhalt der Datei.
+</p>
+
 <h2>Was lokal gespeichert wird und warum</h2>
 <ul>
 	<li><strong>Deine Daten</strong> in IndexedDB: Das ist die Funktion der App.</li>

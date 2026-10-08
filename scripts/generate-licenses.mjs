@@ -21,7 +21,8 @@ const PACKAGES = [
 	'd3-format',
 	'd3-interpolate',
 	'd3-time',
-	'd3-time-format'
+	'd3-time-format',
+	'fflate'
 ];
 
 function readOptional(dir, pattern) {

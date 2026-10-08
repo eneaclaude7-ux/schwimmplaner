@@ -94,7 +94,7 @@ Endzeit `result` = 14980 (2:29.80).
 
 Berechnet werden daraus die Laps 34.20 / 38.10 / 38.60 / 38.90, wobei die letzte Lap = Endzeit − letzter Split ist. Dazu kommt der Positive/Negative Split: erste Hälfte 72.30 gegen zweite Hälfte 77.50.
 
-So funktioniert es auch in Lenex, deshalb klappt der Import später ohne Umrechnen. Bei der Eingabe kannst du trotzdem Laps oder kumulierte Zeiten tippen, die App rechnet um.
+So funktioniert es auch in Lenex, deshalb klappt der Lenex-Import ohne Umrechnen (`src/lib/lenex.ts`, siehe README). Bei der Eingabe kannst du trotzdem Laps oder kumulierte Zeiten tippen, die App rechnet um.
 
 Abstände der Zwischenzeiten: alle 25 m (nur Kurzbahn, dort ist eine Wende), alle 50 m oder alle 100 m (ab 400 m). Auf 50 m Langbahn gibt es keine Zwischenzeiten. Bei Zeiten ab Start dürfen Felder leer bleiben, der Abschnitt wird dann länger. Laps müssen vollständig sein, sonst lassen sie sich nicht aufsummieren. Positive/Negative Split braucht eine Zwischenzeit bei der halben Strecke. Code: `src/lib/splits.ts`.
 
