@@ -164,8 +164,10 @@
 						<span class="num" class:today={day === today} aria-hidden="true"
 							>{Number(day.slice(8))}</span
 						>
+						<!-- Nur für die Maus: per Tastatur gibt es oben "Wettkampf hinzufügen", sonst wären es 35 Tabstopps -->
 						<a
 							class="add"
+							tabindex="-1"
 							href={resolve(`/wettkampf/bearbeiten?datum=${day}`)}
 							aria-label="Wettkampf am {formatDate(day)} hinzufügen">+</a
 						>
@@ -328,9 +330,13 @@
 		background: var(--color-weekend);
 	}
 
+	/* Tage aus dem Vor- und Folgemonat: grau, aber mit genug Kontrast (7:1) */
+	.day.outside {
+		background: var(--color-weekend);
+	}
+
 	.day.outside .num {
 		color: var(--color-muted);
-		opacity: 0.6;
 	}
 
 	.num {
@@ -384,14 +390,16 @@
 		}
 	}
 
+	/* Mindestens 24 px hoch, damit man auch auf dem Handy sicher trifft (WCAG 2.5.8) */
 	.chip {
 		position: relative;
 		z-index: 1;
+		display: block;
+		line-height: 22px;
 		margin: 1px 4px;
-		padding: 0.05rem 0.35rem;
+		padding: 1px 0.35rem;
 		border-radius: 4px;
 		font-size: 0.8rem;
-		line-height: 1.4;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -411,7 +419,9 @@
 		background: var(--color-lcm);
 	}
 
+	/* Rahmen statt Innenabstand oben und unten, die Höhe bleibt 24 px */
 	.chip.deadline {
+		padding-block: 0;
 		background: var(--color-bg);
 		border: 1px dashed var(--color-warning);
 		color: var(--color-warning);
@@ -490,7 +500,7 @@
 
 		.chip {
 			margin: 1px 1px;
-			padding: 0 0.15rem;
+			padding: 1px 0.15rem;
 			font-size: 0.65rem;
 			text-overflow: clip;
 		}

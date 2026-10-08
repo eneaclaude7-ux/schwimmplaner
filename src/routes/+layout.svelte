@@ -51,6 +51,9 @@
 
 <footer>
 	<p>Deine Daten bleiben auf diesem Gerät. Kein Konto, kein Tracking.</p>
+	<p class="links">
+		<a href={resolve('/datenschutz')}>Datenschutz</a> · <a href={resolve('/lizenzen')}>Lizenzen</a>
+	</p>
 </footer>
 
 <style>
@@ -95,5 +98,9 @@
 		margin-top: 3rem;
 		color: var(--color-muted);
 		font-size: 0.9rem;
+	}
+
+	footer .links {
+		margin-top: -0.5rem;
 	}
 </style>

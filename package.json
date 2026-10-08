@@ -13,7 +13,8 @@
 		"lint": "prettier --check .",
 		"format": "prettier --write .",
 		"test:unit": "vitest",
-		"test": "npm run test:unit -- --run"
+		"test": "npm run test:unit -- --run",
+		"licenses": "node scripts/generate-licenses.mjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^4.0.0",
