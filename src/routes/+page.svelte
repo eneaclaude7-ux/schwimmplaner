@@ -339,7 +339,6 @@
 		min-width: 1.5rem;
 		height: 1.5rem;
 		margin: 0.2rem 0.3rem;
-		padding: 0 0.2rem;
 		font-size: 0.85rem;
 		font-variant-numeric: tabular-nums;
 		border-radius: 999px;
