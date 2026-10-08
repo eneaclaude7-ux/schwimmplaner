@@ -145,7 +145,12 @@
 					{#if race.status === 'finished' && race.result !== undefined && race.splits.length > 0}
 						<details>
 							<summary>Zwischenzeiten</summary>
-							<SplitTable splits={race.splits} distance={race.distance} result={race.result} />
+							<SplitTable
+								splits={race.splits}
+								distance={race.distance}
+								result={race.result}
+								chart
+							/>
 						</details>
 					{/if}
 					<div class="row-actions">

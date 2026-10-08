@@ -13,6 +13,9 @@
 	--color-today: #c62828; /* weisse Schrift darauf 5.6:1 */
 	--color-scm: #dbe8f6; /* Kurzbahn, Text darauf 14:1 */
 	--color-lcm: #d9f0e1; /* Langbahn, Text darauf 14:1 */
+	/* Zwei Rennen im Vergleich: geprüft auf Farbsehschwäche (dataviz-Validator), dazu Form als zweites Merkmal */
+	--color-series-a: #2a78d6;
+	--color-series-b: #eb6834;
 	--radius: 8px;
 
 	font-family:

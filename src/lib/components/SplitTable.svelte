@@ -2,18 +2,29 @@
 	import type { Hs, Split } from '#lib/model.ts';
 	import { halves, halvesLabel, segments } from '#lib/splits.ts';
 	import { formatTime } from '#lib/time.ts';
+	import SplitChart from './SplitChart.svelte';
 
 	interface Props {
 		splits: Split[];
 		distance: number;
 		result: Hs;
+		/** Diagramm der Lap-Zeiten über der Tabelle */
+		chart?: boolean;
 	}
 
-	let { splits, distance, result }: Props = $props();
+	let { splits, distance, result, chart = false }: Props = $props();
 
 	const rows = $derived(segments(splits, distance, result));
 	const half = $derived(halves(splits, distance, result));
 </script>
+
+{#if chart && rows.length >= 2}
+	<SplitChart
+		title="Lap-Zeiten {distance} m"
+		labels={rows.map((r) => `${r.from}–${r.to} m`)}
+		series={[{ key: 'Lap', name: 'Lap-Zeit', laps: rows.map((r) => r.lap) }]}
+	/>
+{/if}
 
 <div class="table-wrap">
 	<table>

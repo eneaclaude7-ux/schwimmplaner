@@ -85,6 +85,59 @@ export function halvesLabel(h: Halves): string {
 	return 'Beide Hälften gleich schnell';
 }
 
+/** Ein Abschnitt im Vergleich zweier Rennen derselben Strecke */
+export interface ComparedSegment {
+	from: number;
+	to: number;
+	lapA: Hs;
+	lapB: Hs;
+	/** B minus A: negativ = B war in diesem Abschnitt schneller */
+	lapDiff: Hs;
+	cumulativeA: Hs;
+	cumulativeB: Hs;
+	/** Rückstand oder Vorsprung von B bei dieser Distanz */
+	cumulativeDiff: Hs;
+}
+
+/**
+ * Vergleicht zwei Rennen Abschnitt für Abschnitt. Verglichen wird nur bei Distanzen,
+ * an denen beide eine Zwischenzeit haben; sonst wären die Abschnitte verschieden lang.
+ */
+export function compareSplits(
+	a: { splits: Split[]; result: Hs },
+	b: { splits: Split[]; result: Hs },
+	distance: number
+): ComparedSegment[] {
+	const common = new Set(
+		a.splits
+			.filter((s) => s.distance < distance && b.splits.some((t) => t.distance === s.distance))
+			.map((s) => s.distance)
+	);
+	const segA = segments(
+		a.splits.filter((s) => common.has(s.distance)),
+		distance,
+		a.result
+	);
+	const segB = segments(
+		b.splits.filter((s) => common.has(s.distance)),
+		distance,
+		b.result
+	);
+	return segA.map((sa, i) => {
+		const sb = segB[i];
+		return {
+			from: sa.from,
+			to: sa.to,
+			lapA: sa.lap,
+			lapB: sb.lap,
+			lapDiff: sb.lap - sa.lap,
+			cumulativeA: sa.cumulative,
+			cumulativeB: sb.cumulative,
+			cumulativeDiff: sb.cumulative - sa.cumulative
+		};
+	});
+}
+
 /** Plausibilitätsprüfung. Nur Warnungen: speichern darf man trotzdem. */
 export function checkSplits(splits: Split[], distance: number, result?: Hs): string[] {
 	const warnings: string[] = [];

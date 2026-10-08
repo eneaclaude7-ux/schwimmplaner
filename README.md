@@ -4,7 +4,7 @@ Eine Web-App, mit der Nachwuchsschwimmer, Eltern und Trainer Wettkämpfe planen 
 
 **Positionierung:** Resultat-Plattformen zeigen, was war. Diese App zeigt, was als Nächstes kommt und was man aus einem Rennen lernt. Sie ist keine Resultatdatenbank.
 
-**Stand:** Phase 1, Etappe 5 fertig. Wettkämpfe, Läufe und Saisons lassen sich erfassen, sichern und löschen. Die Seite "Auswertung" zeigt Bestzeit, Saisonbestzeit und Verbesserungen, getrennt nach Kurz- und Langbahn. Pro Strecke zeigt ein Liniendiagramm die Entwicklung. Zu jedem Lauf lassen sich Zwischenzeiten erfassen, mit Lap-Zeiten, Anteilen und Positive/Negative Split. Die App ist installierbar und läuft offline.
+**Stand:** Phase 1, Etappe 6 fertig. Wettkämpfe, Läufe und Saisons lassen sich erfassen, sichern und löschen. Die Seite "Auswertung" zeigt Bestzeit, Saisonbestzeit und Verbesserungen, getrennt nach Kurz- und Langbahn. Pro Strecke zeigt ein Liniendiagramm die Entwicklung. Zu jedem Lauf lassen sich Zwischenzeiten erfassen, mit Lap-Zeiten, Anteilen, Positive/Negative Split und Diagramm; zwei Rennen derselben Strecke lassen sich Abschnitt für Abschnitt vergleichen. Die App ist installierbar und läuft offline.
 
 **App:** <https://eneaclaude7-ux.github.io/schwimmplaner/>
 
@@ -18,7 +18,7 @@ Eine Web-App, mit der Nachwuchsschwimmer, Eltern und Trainer Wettkämpfe planen 
 - [x] 4. Entwicklung pro Strecke als Liniendiagramm, mit markierter Bestzeit
 - [x] 5. Verbesserung zur letzten Zeit, zur Bestzeit und seit Saisonstart (Sekunden und Prozent)
 - [x] 6. Filter nach Bahnlänge; Kurz- und Langbahn werden nie gemischt
-- [ ] 7. Splits: Erfassung, Lap-Zeiten, Positive/Negative Split, Anteile, Diagramm, Vergleich zweier Rennen, Plausibilitätsprüfung
+- [x] 7. Splits: Erfassung, Lap-Zeiten, Positive/Negative Split, Anteile, Diagramm, Vergleich zweier Rennen, Plausibilitätsprüfung
 
 Reihenfolge der Etappen:
 
@@ -27,7 +27,7 @@ Reihenfolge der Etappen:
 3. ✓ Abweichung, Bestzeit, Saisonbestzeit, Verbesserung, Filter nach Bahnlänge, CSV-Export (MVP 3, 5, 6)
 4. ✓ Splits erfassen und auswerten (MVP 7, Teil)
 5. ✓ Entwicklungsdiagramm pro Strecke mit Tabelle als Alternative (MVP 4)
-6. Split-Diagramm und Vergleich zweier Rennen (MVP 7, Rest)
+6. ✓ Split-Diagramm und Vergleich zweier Rennen (MVP 7, Rest)
 7. Datenschutzseite, Seite "Lizenzen", Check auf Barrierefreiheit
 
 **Version 2** (erst nach einer Saison eigener Nutzung): Abstand zu Qualifikationslimiten, Saisonplanung mit Taper, Kosten- und Reiseplanung, Kurzreflexion nach dem Rennen.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	checkSplits,
+	compareSplits,
 	detectInterval,
 	halves,
 	halvesLabel,
@@ -167,5 +168,35 @@ describe('Umrechnen zwischen den Eingabearten', () => {
 
 	it('Text für den CSV-Export', () => {
 		expect(splitsText(splits)).toBe('50 m 34.20 | 100 m 1:12.30 | 150 m 1:50.90');
+	});
+});
+
+describe('compareSplits', () => {
+	const later = [
+		{ distance: 50, cumulative: 3380 },
+		{ distance: 100, cumulative: 7150 },
+		{ distance: 150, cumulative: 10990 }
+	];
+
+	it('vergleicht Abschnitt für Abschnitt, B minus A', () => {
+		const rows = compareSplits({ splits, result: 14980 }, { splits: later, result: 14820 }, 200);
+		expect(rows.map((r) => [r.to, r.lapA, r.lapB, r.lapDiff, r.cumulativeDiff])).toEqual([
+			[50, 3420, 3380, -40, -40],
+			[100, 3810, 3770, -40, -80],
+			[150, 3860, 3840, -20, -100],
+			[200, 3890, 3830, -60, -160]
+		]);
+	});
+
+	it('nutzt nur gemeinsame Zwischenzeiten', () => {
+		const rows = compareSplits(
+			{ splits, result: 14980 },
+			{ splits: [{ distance: 100, cumulative: 7150 }], result: 14820 },
+			200
+		);
+		expect(rows.map((r) => [r.from, r.to, r.lapDiff])).toEqual([
+			[0, 100, -80],
+			[100, 200, -80]
+		]);
 	});
 });

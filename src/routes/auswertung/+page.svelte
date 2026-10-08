@@ -15,6 +15,7 @@
 	} from '#lib/stats.ts';
 	import { formatDiff, formatTime } from '#lib/time.ts';
 	import ProgressChart from '#lib/components/ProgressChart.svelte';
+	import SplitCompare from '#lib/components/SplitCompare.svelte';
 
 	const data = liveQuery(async () => ({
 		races: await db.races.toArray(),
@@ -187,6 +188,18 @@
 						</tbody>
 					</table>
 				</div>
+
+				{#if h.entries.filter((e) => e.race.splits.length > 0).length >= 2}
+					{@const withSplits = h.entries.filter((e) => e.race.splits.length > 0)}
+					<details class="compare">
+						<summary>Zwischenzeiten zweier Rennen vergleichen</summary>
+						<SplitCompare
+							entries={withSplits}
+							distance={h.distance}
+							label="{raceLabel(h)}, {COURSE_LABEL[h.course]}"
+						/>
+					</details>
+				{/if}
 			</section>
 		{/each}
 	{/if}
@@ -202,6 +215,16 @@
 
 	section {
 		margin-top: 2rem;
+	}
+
+	.compare {
+		margin-top: 1rem;
+	}
+
+	.compare summary {
+		cursor: pointer;
+		color: var(--color-primary);
+		font-weight: 600;
 	}
 
 	/* Weniger Abstand, damit fünf Spalten auf ein Handy passen */
