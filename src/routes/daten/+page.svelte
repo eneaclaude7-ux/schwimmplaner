@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { liveQuery } from 'dexie';
 	import { parseBackup } from '#lib/backup.ts';
+	import { racesToCsv } from '#lib/csv.ts';
 	import { db } from '#lib/db.ts';
 	import { formatDate, isIsoDate, todayIso } from '#lib/dates.ts';
 	import type { Season } from '#lib/model.ts';
@@ -49,16 +50,29 @@
 	}
 
 	// Export: Datei im Browser erzeugen, nichts geht an einen Server
-	async function download() {
-		const backup = await exportAll();
-		const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-		const url = URL.createObjectURL(blob);
+	function save(text: string, type: string, filename: string) {
+		const url = URL.createObjectURL(new Blob([text], { type }));
 		const link = document.createElement('a');
 		link.href = url;
-		link.download = `schwimmplaner-${todayIso()}.json`;
+		link.download = filename;
 		link.click();
 		URL.revokeObjectURL(url);
+	}
+
+	async function download() {
+		const backup = await exportAll();
+		save(JSON.stringify(backup, null, 2), 'application/json', `schwimmplaner-${todayIso()}.json`);
 		message = 'Backup heruntergeladen.';
+	}
+
+	async function downloadCsv() {
+		const { races, competitions, seasons } = await exportAll();
+		save(
+			racesToCsv(races, competitions, seasons),
+			'text/csv;charset=utf-8',
+			`schwimmplaner-laeufe-${todayIso()}.csv`
+		);
+		message = 'Läufe als CSV heruntergeladen.';
 	}
 
 	let fileInput = $state<HTMLInputElement>();
@@ -179,7 +193,14 @@
 	</p>
 	<div class="actions">
 		<button class="button" type="button" onclick={download}>Backup herunterladen (JSON)</button>
+		<button class="button secondary" type="button" onclick={downloadCsv}
+			>Läufe als Tabelle (CSV)</button
+		>
 	</div>
+	<p class="hint">
+		Die CSV-Datei öffnet sich in Excel oder Numbers, zum Beispiel für den Trainer. Einlesen lässt
+		sich nur das JSON-Backup.
+	</p>
 
 	<div class="field">
 		<label for="backup-file">Backup einlesen</label>

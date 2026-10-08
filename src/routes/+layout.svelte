@@ -15,6 +15,7 @@
 
 	const links = [
 		{ href: resolve('/'), label: 'Kalender' },
+		{ href: resolve('/auswertung'), label: 'Auswertung' },
 		{ href: resolve('/daten'), label: 'Daten' }
 	];
 

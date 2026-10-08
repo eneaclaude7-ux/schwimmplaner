@@ -4,7 +4,7 @@ Eine Web-App, mit der Nachwuchsschwimmer, Eltern und Trainer Wettkämpfe planen 
 
 **Positionierung:** Resultat-Plattformen zeigen, was war. Diese App zeigt, was als Nächstes kommt und was man aus einem Rennen lernt. Sie ist keine Resultatdatenbank.
 
-**Stand:** Phase 1, Etappe 2 fertig. Wettkämpfe, Läufe und Saisons lassen sich erfassen, sichern und löschen. Die App ist installierbar und läuft offline.
+**Stand:** Phase 1, Etappe 3 fertig. Wettkämpfe, Läufe und Saisons lassen sich erfassen, sichern und löschen. Die Seite "Auswertung" zeigt Bestzeit, Saisonbestzeit und Verbesserungen, getrennt nach Kurz- und Langbahn. Die App ist installierbar und läuft offline.
 
 **App:** <https://eneaclaude7-ux.github.io/schwimmplaner/>
 
@@ -14,17 +14,17 @@ Eine Web-App, mit der Nachwuchsschwimmer, Eltern und Trainer Wettkämpfe planen 
 
 - [x] 1. Wettkampfkalender: Name, Datum, Ort, Meldeschluss, Bahnlänge
 - [x] 2. Läufe pro Wettkampf: Disziplin, Strecke, Zielzeit, Resultat
-- [ ] 3. Automatisch berechnet: Abweichung vom Ziel, persönliche Bestzeit, Saisonbestzeit
+- [x] 3. Automatisch berechnet: Abweichung vom Ziel, persönliche Bestzeit, Saisonbestzeit
 - [ ] 4. Entwicklung pro Strecke als Liniendiagramm, mit markierter Bestzeit
-- [ ] 5. Verbesserung zur letzten Zeit, zur Bestzeit und seit Saisonstart (Sekunden und Prozent)
-- [ ] 6. Filter nach Bahnlänge; Kurz- und Langbahn werden nie gemischt
+- [x] 5. Verbesserung zur letzten Zeit, zur Bestzeit und seit Saisonstart (Sekunden und Prozent)
+- [x] 6. Filter nach Bahnlänge; Kurz- und Langbahn werden nie gemischt
 - [ ] 7. Splits: Erfassung, Lap-Zeiten, Positive/Negative Split, Anteile, Diagramm, Vergleich zweier Rennen, Plausibilitätsprüfung
 
 Reihenfolge der Etappen:
 
 1. ✓ Wettkämpfe und Läufe erfassen, Saisons, Backup, alles löschen (MVP 1, 2)
 2. ✓ GitHub Pages, installierbar, offline, Hinweis bei neuer Version
-3. Abweichung, Bestzeit, Saisonbestzeit, Verbesserung, Filter nach Bahnlänge (MVP 3, 5, 6)
+3. ✓ Abweichung, Bestzeit, Saisonbestzeit, Verbesserung, Filter nach Bahnlänge, CSV-Export (MVP 3, 5, 6)
 4. Splits erfassen und auswerten (MVP 7, Teil)
 5. Entwicklungsdiagramm pro Strecke mit Tabelle als Alternative (MVP 4)
 6. Split-Diagramm und Vergleich zweier Rennen (MVP 7, Rest)
@@ -79,7 +79,7 @@ Stand: 7.10.2026. Keine Rechtsberatung. Alles mit **von Anwalt klären** muss vo
 | #   | Punkt                            | Status                     | Umsetzung                                                                                                                                                                                                                                                                                                                                 |
 | --- | -------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Datensparsamkeit                 | umgesetzt (Phase 1)        | Kein Server, kein Tracking. Das Datenmodell enthält keinen Jahrgang, kein Geschlecht und keinen Verein. Liste aller Drittanbieter mit dem, was sie senden: [docs/03-tech-stack.md](docs/03-tech-stack.md).                                                                                                                                |
-| 2   | Löschen und Export               | umgesetzt (Phase 1)        | Seite "Daten": Knopf "Alle Daten löschen", Backup als JSON herunterladen und wieder einlesen. Die Datei wird beim Einlesen Feld für Feld geprüft. In Phase 2 kommt "Konto löschen" dazu. CSV-Export folgt mit der Auswertung (Etappe 3).                                                                                                  |
+| 2   | Löschen und Export               | umgesetzt (Phase 1)        | Seite "Daten": Knopf "Alle Daten löschen", Backup als JSON herunterladen und wieder einlesen. Die Datei wird beim Einlesen Feld für Feld geprüft. In Phase 2 kommt "Konto löschen" dazu. Dazu kommen alle Läufe als CSV für Excel, mit Schutz gegen Formeln in Wettkampfnamen.                                                            |
 | 3   | Altersabfrage, Eltern            | Phase 2                    | Phase 1 hat keine Konten, darum gibt es nichts abzufragen. Mehr dazu unten.                                                                                                                                                                                                                                                               |
 | 4   | Datenschutz, Nutzungsbedingungen | offen                      | Ein Entwurf als Seite in der App kommt vor dem ersten öffentlichen Link. **Von Anwalt klären.**                                                                                                                                                                                                                                           |
 | 5   | Cookies und Tracking             | umgesetzt (Phase 1)        | Keine Cookies, kein Analytics, keine Embeds. Systemschriften, nichts wird extern geladen. Lokal gespeichert werden nur die eigenen Daten (IndexedDB) und die App-Dateien (Service-Worker-Cache), beides gehört zur Funktion. Gehört trotzdem in die Datenschutzerklärung (Art. 45c FMG). **Von Anwalt klären**, ob dieser Hinweis genügt. |

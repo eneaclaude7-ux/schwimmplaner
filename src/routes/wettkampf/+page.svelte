@@ -9,6 +9,7 @@
 	import { daysBetween, formatDate, formatDateRange, relativeDays, todayIso } from '#lib/dates.ts';
 	import { COURSE_LABEL, raceLabel, STATUS_LABEL, type Id, type Race } from '#lib/model.ts';
 	import { deleteCompetition, deleteRace } from '#lib/repo.ts';
+	import { bestMarks, buildHistories } from '#lib/stats.ts';
 	import { formatDiff, formatTime } from '#lib/time.ts';
 
 	const id = $derived(page.url.searchParams.get('id') ?? '');
@@ -20,6 +21,17 @@
 		liveQuery(async () =>
 			(await db.races.where('competitionId').equals(id).toArray()).sort(
 				(a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt)
+			)
+		)
+	);
+
+	// Bestzeiten hängen an allen Läufen, nicht nur an diesem Wettkampf
+	const marks = liveQuery(async () =>
+		bestMarks(
+			buildHistories(
+				await db.races.toArray(),
+				await db.competitions.toArray(),
+				await db.seasons.toArray()
 			)
 		)
 	);
@@ -118,6 +130,11 @@
 						<div>
 							<dt>Resultat</dt>
 							<dd>{resultText(race)}</dd>
+							{#if $marks?.pb.has(race.id)}
+								<dd><span class="badge">Bestzeit</span></dd>
+							{:else if $marks?.sb.has(race.id)}
+								<dd><span class="badge">Saisonbestzeit</span></dd>
+							{/if}
 						</div>
 						<div>
 							<dt>Abweichung</dt>
