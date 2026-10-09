@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
+	import { errorAnnouncement, focusFirstError } from '#lib/forms.ts';
 	import { datesInRange, formatDate } from '#lib/dates.ts';
 	import {
 		allowedDistances,
@@ -20,11 +21,14 @@
 		competition: Competition;
 		/** Leer = neuer Lauf */
 		race?: Race;
-		onsaved: () => void;
+		/** Direkt die Endzeit erfassen: Status steht auf geschwommen, Fokus im Feld Endzeit */
+		enterResult?: boolean;
+		/** Bekommt die ID des gespeicherten Laufs */
+		onsaved: (id: string) => void;
 		oncancel?: () => void;
 	}
 
-	let { competition, race, onsaved, oncancel }: Props = $props();
+	let { competition, race, enterResult = false, onsaved, oncancel }: Props = $props();
 
 	// Startwerte einmal übernehmen. Wechselt der bearbeitete Lauf, baut die Seite
 	// das Formular neu auf ({#key}), darum muss hier nichts nachgeführt werden.
@@ -35,7 +39,7 @@
 		distance: initial ? String(initial.distance) : '',
 		date: initial?.date ?? meet.startDate,
 		target: initial?.target !== undefined ? formatTime(initial.target) : '',
-		status: initial?.status ?? 'planned',
+		status: untrack(() => enterResult) ? 'finished' : (initial?.status ?? 'planned'),
 		result: initial?.result !== undefined ? formatTime(initial.result) : ''
 	});
 	let errors = $state<Partial<Record<keyof RaceInput, string>>>({});
@@ -64,10 +68,25 @@
 	let splitErrors = $state<Record<number, string>>({});
 	const resultHs = $derived(parseTime(form.result) ?? undefined);
 	let saving = $state(false);
+	let formEl = $state<HTMLFormElement>();
+	/** Meldung für Screenreader, falls der Fokus schon im fehlerhaften Feld war */
+	let alert = $state('');
 
 	const days = $derived(datesInRange(competition.startDate, competition.endDate));
 	const distances = $derived(form.stroke ? allowedDistances(form.stroke, competition.course) : []);
 	const prefix = $derived(race ? `race-${race.id}` : 'race-new');
+
+	onMount(() => {
+		if (enterResult) document.getElementById(`${prefix}-result`)?.focus();
+	});
+
+	/** Zeigt, wie eine Eingabe gelesen wird ("10920" = 1:09.20), wenn das nicht offensichtlich ist */
+	function echo(text: string): string | undefined {
+		const parsed = parseTime(text);
+		if (parsed === null || !text.trim()) return undefined;
+		const formatted = formatTime(parsed);
+		return formatted === text.trim() ? undefined : `= ${formatted}`;
+	}
 
 	const strokes = Object.entries(STROKE_LABEL) as [Stroke, string][];
 	const statuses = Object.entries(STATUS_LABEL) as [RaceStatus, string][];
@@ -89,30 +108,34 @@
 		if (!result.ok || !splits.ok) {
 			errors = result.ok ? {} : result.errors;
 			splitErrors = splits.ok ? {} : splits.errors;
-			const first = result.ok
-				? `split-${Object.keys(splitErrors)[0]}`
-				: Object.keys(result.errors)[0];
-			document.getElementById(`${prefix}-${first}`)?.focus();
+			alert = '';
+			await tick();
+			// Fokus auf das oberste fehlerhafte Feld, in der Reihenfolge auf dem Bildschirm
+			if (formEl) focusFirstError(formEl);
+			alert = errorAnnouncement(
+				[...Object.values(errors), ...Object.values(splitErrors)].filter((m): m is string => !!m)
+			);
 			return;
 		}
 		errors = {};
 		splitErrors = {};
 		saving = true;
 		try {
-			await saveRace({ ...result.value, splits: splits.splits }, competition.id, race?.id);
-			onsaved();
+			onsaved(await saveRace({ ...result.value, splits: splits.splits }, competition.id, race?.id));
 		} finally {
 			saving = false;
 		}
 	}
 </script>
 
-<form onsubmit={submit} oninput={clearError} onchange={clearError} novalidate>
+<form bind:this={formEl} onsubmit={submit} oninput={clearError} onchange={clearError} novalidate>
+	<p class="visually-hidden" aria-live="assertive">{alert}</p>
 	<div class="grid-2">
 		<div class="field">
 			<label for="{prefix}-stroke">Lage</label>
 			<select
 				id="{prefix}-stroke"
+				aria-required="true"
 				bind:value={form.stroke}
 				onchange={() => {
 					// Strecke zurücksetzen, wenn es sie für die neue Lage nicht gibt (z. B. 1500 m Brust)
@@ -136,6 +159,7 @@
 			<label for="{prefix}-distance">Strecke</label>
 			<select
 				id="{prefix}-distance"
+				aria-required="true"
 				bind:value={form.distance}
 				onchange={() => {
 					// Andere Strecke, andere Zwischenzeiten
@@ -186,7 +210,11 @@
 				aria-invalid={!!errors.target}
 				aria-describedby="{prefix}-time-hint{errors.target ? ` ${prefix}-target-error` : ''}"
 			/>
-			{#if errors.target}<p id="{prefix}-target-error" class="error">{errors.target}</p>{/if}
+			{#if errors.target}
+				<p id="{prefix}-target-error" class="error">{errors.target}</p>
+			{:else if echo(form.target)}
+				<p class="echo">{echo(form.target)}</p>
+			{/if}
 		</div>
 
 		<div class="field">
@@ -204,6 +232,7 @@
 			<label for="{prefix}-result">Endzeit</label>
 			<input
 				id="{prefix}-result"
+				aria-required="true"
 				bind:value={form.result}
 				inputmode="decimal"
 				autocomplete="off"
@@ -211,9 +240,19 @@
 				aria-invalid={!!errors.result}
 				aria-describedby="{prefix}-time-hint{errors.result ? ` ${prefix}-result-error` : ''}"
 			/>
-			{#if errors.result}<p id="{prefix}-result-error" class="error">{errors.result}</p>{/if}
+			{#if errors.result}
+				<p id="{prefix}-result-error" class="error">{errors.result}</p>
+			{:else if echo(form.result)}
+				<p class="echo">{echo(form.result)}</p>
+			{/if}
 		</div>
+	{/if}
 
+	<p id="{prefix}-time-hint" class="hint">
+		Zeiten als 1:09.20, 1.09.20 oder nur Ziffern (10920). Unter einer Minute: 34.20.
+	</p>
+
+	{#if form.status === 'finished'}
 		{#if form.distance}
 			<SplitFields
 				distance={Number(form.distance)}
@@ -226,10 +265,6 @@
 		{/if}
 	{/if}
 
-	<p id="{prefix}-time-hint" class="hint">
-		Zeiten als 1:09.20, 1.09.20 oder nur Ziffern (10920). Unter einer Minute: 34.20.
-	</p>
-
 	<div class="actions">
 		<button class="button" type="submit" disabled={saving}>
 			{race ? 'Lauf speichern' : 'Lauf hinzufügen'}
@@ -239,3 +274,13 @@
 		{/if}
 	</div>
 </form>
+
+<style>
+	/* Wie die Eingabe gelesen wird, direkt unter dem Feld */
+	.echo {
+		margin: 0;
+		color: var(--color-muted);
+		font-size: var(--text-sm);
+		font-variant-numeric: tabular-nums;
+	}
+</style>

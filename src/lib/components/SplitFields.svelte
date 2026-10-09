@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import type { Course, Hs } from '#lib/model.ts';
 	import {
 		fieldKeys,
@@ -37,11 +38,36 @@
 	const preview = $derived(result !== undefined ? parseSplits(input, distance, result) : undefined);
 
 	/** Eingegebene Zeiten beim Wechsel der Eingabeart oder des Abstands mitnehmen */
+	/** Text für Screenreader; bleibt immer im DOM, sonst wird er nicht zuverlässig vorgelesen */
+	let spoken = $state('');
+	async function say(text: string) {
+		spoken = '';
+		await tick();
+		spoken = text;
+	}
+
 	function change(next: { mode?: SplitMode; interval?: number }) {
 		const splits = valuesToSplits(input, distance);
 		const target = { mode: next.mode ?? input.mode, interval: next.interval ?? input.interval };
-		input = { ...target, values: splitsToValues(splits, target, distance, result) };
+		const values = splitsToValues(splits, target, distance, result);
+		input = { ...target, values };
 		errors = {};
+		// Sagen, was beim Umrechnen passiert ist, auch wenn Werte verloren gingen
+		const kept = Object.keys(values).filter((k) => Number(k) < distance).length;
+		const lost = Math.max(0, splits.length - kept);
+		say(
+			`${target.mode === 'laps' ? 'Eingabe als Lap-Zeiten' : 'Eingabe als Zeit ab Start'}, ` +
+				`alle ${target.interval} m. ${Object.keys(values).length} Werte übernommen` +
+				(lost > 0 ? `, ${lost} liessen sich nicht übernehmen.` : '.')
+		);
+	}
+
+	/** Warnungen beim Verlassen eines Feldes vorlesen, nicht bei jedem Tastendruck */
+	let lastWarnings = '';
+	function announceWarnings() {
+		const text = preview?.ok ? preview.warnings.join(' ') : '';
+		if (text && text !== lastWarnings) say(`Hinweis: ${text}`);
+		lastWarnings = text;
 	}
 
 	function label(key: number): string {
@@ -49,7 +75,8 @@
 	}
 </script>
 
-<fieldset class="splits">
+<fieldset class="splits" onfocusout={announceWarnings}>
+	<p class="visually-hidden" aria-live="polite">{spoken}</p>
 	<legend>Zwischenzeiten <span class="hint">(optional)</span></legend>
 
 	{#if intervals.length === 0}
@@ -126,7 +153,7 @@
 
 		{#if preview?.ok}
 			{#if preview.warnings.length > 0}
-				<ul class="warning" aria-live="polite">
+				<ul class="warning">
 					{#each preview.warnings as warning (warning)}<li>{warning}</li>{/each}
 				</ul>
 				<p class="hint">Speichern geht trotzdem, falls die Zeiten so stimmen.</p>
@@ -141,13 +168,13 @@
 <style>
 	.splits {
 		border-top: 1px solid var(--color-border);
-		padding-top: 0.75rem;
+		padding-top: var(--space-3);
 	}
 
 	.split-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
-		column-gap: 0.75rem;
+		column-gap: var(--space-3);
 	}
 
 	.split-grid label {

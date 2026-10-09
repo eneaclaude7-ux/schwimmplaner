@@ -10,6 +10,7 @@
 		monthLabel,
 		monthOf,
 		monthWeeks,
+		nextDeadline,
 		type CalendarItem
 	} from '#lib/calendar.ts';
 	import { db } from '#lib/db.ts';
@@ -75,6 +76,13 @@
 			: `${c.name}, ${formatDateRange(c.startDate, c.endDate)}, ${COURSE_LABEL[c.course]}`;
 	}
 
+	/** Der nächste offene Meldeschluss, egal in welchem Monat: das Erste, was man sehen soll */
+	const next = $derived(nextDeadline($competitions ?? [], today));
+	const nextInfo = $derived(next?.entryDeadline ? deadline(next) : null);
+
+	/** Der nächste kommende Wettkampf wird in der Liste hervorgehoben */
+	const nextUpId = $derived(upcoming[0]?.id);
+
 	const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 </script>
 
@@ -82,21 +90,30 @@
 	<title>Kalender – Schwimmplaner</title>
 </svelte:head>
 
-<h1>Wettkampfkalender</h1>
+<!-- Der Seitentitel steht schon in der Navigation; sichtbar ist zuerst der nächste Meldeschluss -->
+<h1 class="visually-hidden">Wettkampfkalender</h1>
+
+{#if next && nextInfo}
+	<a class="next-deadline" class:soon={nextInfo.soon} href={resolve(`/wettkampf?id=${next.id}`)}>
+		<span class="label">Nächster Meldeschluss</span>
+		<span class="what"><strong>{next.name}</strong></span>
+		<span class="when">{formatDate(next.entryDeadline!)} · {relativeDays(nextInfo.days)}</span>
+	</a>
+{/if}
 
 <div class="toolbar">
-	<nav class="views" aria-label="Ansicht">
+	<nav class="tabs" aria-label="Ansicht">
 		<a
 			href={href({ ansicht: 'monat' })}
 			aria-current={view === 'monat' ? 'page' : undefined}
 			data-sveltekit-replacestate
-			data-sveltekit-noscroll>Monat</a
+			data-sveltekit-reset="false">Monat</a
 		>
 		<a
 			href={href({ ansicht: 'liste' })}
 			aria-current={view === 'liste' ? 'page' : undefined}
 			data-sveltekit-replacestate
-			data-sveltekit-noscroll>Liste</a
+			data-sveltekit-reset="false">Liste</a
 		>
 	</nav>
 	<a class="button small" href={resolve('/wettkampf/bearbeiten')}>Wettkampf hinzufügen</a>
@@ -104,8 +121,9 @@
 
 {#snippet item(c: Competition, showDeadline: boolean)}
 	{@const d = showDeadline ? deadline(c) : null}
-	<li class="card">
-		<a href={resolve(`/wettkampf?id=${c.id}`)}><strong>{c.name}</strong></a>
+	{@const isPast = (c.endDate ?? c.startDate) < today}
+	<li class="card meet" class:next={c.id === nextUpId} class:past={isPast}>
+		<a class="stretched" href={resolve(`/wettkampf?id=${c.id}`)}><strong>{c.name}</strong></a>
 		<div>{formatDateRange(c.startDate, c.endDate)} · {c.location}</div>
 		<div><span class="badge">{COURSE_LABEL[c.course]}</span></div>
 		{#if d && c.entryDeadline}
@@ -114,6 +132,20 @@
 			</div>
 		{/if}
 	</li>
+{/snippet}
+
+{#snippet empty()}
+	<div class="empty">
+		<p><strong>Noch keine Wettkämpfe erfasst.</strong></p>
+		<p>
+			Trag den nächsten Wettkampf mit Datum und Meldeschluss ein. Resultate von früheren Wettkämpfen
+			kannst du auch aus einer Lenex-Datei übernehmen.
+		</p>
+		<div class="actions">
+			<a class="button" href={resolve('/wettkampf/bearbeiten')}>Ersten Wettkampf eintragen</a>
+			<a class="button secondary" href={resolve('/daten')}>Lenex-Datei einlesen</a>
+		</div>
+	</div>
 {/snippet}
 
 {#if $competitions === undefined}
@@ -126,24 +158,21 @@
 				class="button secondary small"
 				href={href({ monat: monthOf(today) })}
 				data-sveltekit-replacestate
-				data-sveltekit-noscroll
-				data-sveltekit-keepfocus>Heute</a
+				data-sveltekit-reset="false">Heute</a
 			>
 			<a
 				class="button secondary small arrow"
 				href={href({ monat: addMonths(month, -1) })}
 				aria-label="Vorheriger Monat"
 				data-sveltekit-replacestate
-				data-sveltekit-noscroll
-				data-sveltekit-keepfocus>‹</a
+				data-sveltekit-reset="false">‹</a
 			>
 			<a
 				class="button secondary small arrow"
 				href={href({ monat: addMonths(month, 1) })}
 				aria-label="Nächster Monat"
 				data-sveltekit-replacestate
-				data-sveltekit-noscroll
-				data-sveltekit-keepfocus>›</a
+				data-sveltekit-reset="false">›</a
 			>
 		</div>
 	</div>
@@ -168,6 +197,7 @@
 						<a
 							class="add"
 							tabindex="-1"
+							aria-hidden="true"
 							href={resolve(`/wettkampf/bearbeiten?datum=${day}`)}
 							aria-label="Wettkampf am {formatDate(day)} hinzufügen">+</a
 						>
@@ -178,6 +208,7 @@
 						class="chip {p.item.kind} {p.item.competition.course.toLowerCase()}"
 						class:before={p.continuesBefore}
 						class:after={p.continuesAfter}
+						class:short={p.span < 3}
 						style:grid-column="{p.col + 1} / span {p.span}"
 						style:grid-row={p.lane + 2}
 						href={resolve(`/wettkampf?id=${p.item.competition.id}`)}
@@ -199,7 +230,9 @@
 	</ul>
 
 	<h2>Im {monthLabel(month)}</h2>
-	{#if inMonth.length === 0}
+	{#if $competitions.length === 0}
+		{@render empty()}
+	{:else if inMonth.length === 0}
 		<p>Keine Wettkämpfe in diesem Monat.</p>
 	{:else}
 		<ul class="plain">
@@ -207,7 +240,7 @@
 		</ul>
 	{/if}
 {:else if $competitions.length === 0}
-	<p>Noch keine Wettkämpfe. Lege deinen ersten an.</p>
+	{@render empty()}
 {:else}
 	<h2>Kommende Wettkämpfe</h2>
 	{#if upcoming.length === 0}
@@ -237,33 +270,87 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.75rem;
-		margin: 1rem 0;
+		gap: var(--space-3);
+		margin: var(--space-4) 0;
 		border-bottom: 1px solid var(--color-line);
 	}
 
-	/* Ansichten wie die Tabs in Notion */
-	.views {
-		display: flex;
-		gap: 1rem;
-	}
-
-	.views a {
-		padding: 0.4rem 0;
-		color: var(--color-muted);
-		text-decoration: none;
-		border-bottom: 2px solid transparent;
+	/* Die Reiter sitzen auf der Linie der Werkzeugleiste */
+	.toolbar .tabs {
 		margin-bottom: -1px;
 	}
 
-	.views a[aria-current='page'] {
+	/* Nächster Meldeschluss: das Erste auf der Startseite */
+	.next-deadline {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0 var(--space-4);
+		margin-top: var(--space-6);
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius-lg);
 		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.next-deadline:hover {
+		border-color: var(--color-border);
+	}
+
+	.next-deadline .label {
+		grid-column: 1 / -1;
+		font-size: var(--text-sm);
+		color: var(--color-muted);
+	}
+
+	.next-deadline .when {
+		font-variant-numeric: tabular-nums;
+	}
+
+	.next-deadline.soon {
+		border-color: var(--color-warning);
+	}
+
+	.next-deadline.soon .when {
+		color: var(--color-warning);
 		font-weight: 600;
-		border-bottom-color: var(--color-text);
+	}
+
+	/* Ganze Karte antippbar: der Link spannt sich über die Karte */
+	.meet {
+		position: relative;
+	}
+
+	.stretched::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+	}
+
+	.meet.next {
+		background: var(--color-bg);
+		border: 1px solid var(--color-primary);
+	}
+
+	.meet.past {
+		background: transparent;
+		border: 1px solid var(--color-line);
+		color: var(--color-muted);
+	}
+
+	.empty {
+		padding: var(--space-4);
+		border: 1px dashed var(--color-border);
+		border-radius: var(--radius-lg);
+	}
+
+	.empty p {
+		margin: 0 0 var(--space-2);
 	}
 
 	.toolbar .button {
-		margin-bottom: 0.5rem;
+		margin-bottom: var(--space-2);
 	}
 
 	.month-head {
@@ -271,16 +358,16 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.month-head h2 {
-		margin: 0.5rem 0;
+		margin: var(--space-2) 0;
 	}
 
 	.month-nav {
 		display: flex;
-		gap: 0.35rem;
+		gap: var(--space-2);
 	}
 
 	.month-nav .button {
@@ -289,12 +376,12 @@
 	}
 
 	.month-nav .arrow {
-		font-size: 1.2rem;
+		font-size: var(--text-lg);
 		line-height: 1.1;
 	}
 
 	.calendar {
-		margin-top: 0.75rem;
+		margin-top: var(--space-3);
 		border-top: 1px solid var(--color-line);
 		border-right: 1px solid var(--color-line);
 	}
@@ -306,8 +393,8 @@
 	}
 
 	.weekdays div {
-		padding: 0.25rem 0.5rem;
-		font-size: 0.8rem;
+		padding: var(--space-1) var(--space-2);
+		font-size: var(--text-xs);
 		color: var(--color-muted);
 		border-left: 1px solid var(--color-line);
 		border-bottom: 1px solid var(--color-line);
@@ -332,7 +419,7 @@
 
 	/* Tage aus dem Vor- und Folgemonat: grau, aber mit genug Kontrast (7:1) */
 	.day.outside {
-		background: var(--color-weekend);
+		background: var(--color-outside);
 	}
 
 	.day.outside .num {
@@ -344,31 +431,31 @@
 		place-items: center;
 		min-width: 1.5rem;
 		height: 1.5rem;
-		margin: 0.2rem 0.3rem;
-		font-size: 0.85rem;
+		margin: var(--space-1) var(--space-1);
+		font-size: var(--text-sm);
 		font-variant-numeric: tabular-nums;
-		border-radius: 999px;
+		border-radius: var(--radius-full);
 	}
 
 	.num.today {
 		background: var(--color-today);
-		color: #fff;
+		color: var(--color-on-accent);
 		font-weight: 700;
 	}
 
 	/* "+" erscheint wie in Notion erst beim Darüberfahren */
 	.add {
 		position: absolute;
-		top: 0.2rem;
-		right: 0.3rem;
+		top: var(--space-1);
+		right: var(--space-1);
 		width: 1.5rem;
 		height: 1.5rem;
 		display: grid;
 		place-items: center;
-		border-radius: 4px;
+		border-radius: var(--radius-sm);
 		color: var(--color-muted);
 		text-decoration: none;
-		font-size: 1.1rem;
+		font-size: var(--text-lg);
 		line-height: 1;
 		opacity: 0;
 	}
@@ -393,13 +480,13 @@
 	/* Mindestens 24 px hoch, damit man auch auf dem Handy sicher trifft (WCAG 2.5.8) */
 	.chip {
 		position: relative;
-		z-index: 1;
+		z-index: var(--z-raised);
 		display: block;
 		line-height: 22px;
 		margin: 1px 4px;
-		padding: 1px 0.35rem;
-		border-radius: 4px;
-		font-size: 0.8rem;
+		padding: 1px var(--space-2);
+		border-radius: var(--radius-sm);
+		font-size: var(--text-xs);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -443,24 +530,24 @@
 	.legend {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.25rem 1.25rem;
+		gap: var(--space-1) var(--space-5);
 		list-style: none;
 		padding: 0;
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		color: var(--color-muted);
 	}
 
 	.legend li {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	.swatch {
 		display: inline-block;
 		width: 1rem;
 		height: 0.75rem;
-		border-radius: 3px;
+		border-radius: var(--radius-sm);
 	}
 
 	.swatch.scm {
@@ -477,13 +564,18 @@
 
 	/* Auf dem Handy sind die Tage nur gut 3 rem breit */
 	@media (max-width: 30rem) {
+		/* Datum unter den Namen statt daneben, sonst bricht der Name mehrfach um */
+		.next-deadline {
+			grid-template-columns: 1fr;
+		}
+
 		.week {
 			min-height: 4.5rem;
 			grid-template-rows: 1.6rem repeat(var(--lanes), auto) 1fr;
 		}
 
 		.weekdays div {
-			padding: 0.2rem;
+			padding: var(--space-1);
 			text-align: center;
 		}
 
@@ -493,16 +585,20 @@
 			width: 1.3rem;
 			min-width: 0;
 			height: 1.3rem;
-			margin: 0.15rem auto;
+			margin: var(--space-1) auto;
 			padding: 0;
-			font-size: 0.75rem;
+			font-size: var(--text-xs);
 		}
 
 		.chip {
 			margin: 1px 1px;
-			padding: 1px 0.15rem;
-			font-size: 0.65rem;
-			text-overflow: clip;
+			padding: 1px var(--space-1);
+			font-size: var(--text-2xs);
+		}
+
+		/* Kurze Balken sind zu schmal für lesbaren Text: nur Farbe, der Name steht in der Liste darunter */
+		.chip.short {
+			color: transparent;
 		}
 	}
 </style>

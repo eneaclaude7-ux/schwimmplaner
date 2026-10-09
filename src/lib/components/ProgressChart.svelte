@@ -93,9 +93,16 @@
 
 	function key(event: KeyboardEvent) {
 		const last = points.length - 1;
+		// Wie ein Schieberegler: links/unten zurück, rechts/oben vor, Bild-Tasten in Dreierschritten
+		const back = (step: number) => Math.max(0, (active ?? last + 1) - step);
+		const forward = (step: number) => Math.min(last, (active ?? -1) + step);
 		const moves: Record<string, number> = {
-			ArrowLeft: Math.max(0, (active ?? last + 1) - 1),
-			ArrowRight: Math.min(last, (active ?? -1) + 1),
+			ArrowLeft: back(1),
+			ArrowDown: back(1),
+			ArrowRight: forward(1),
+			ArrowUp: forward(1),
+			PageDown: back(3),
+			PageUp: forward(3),
 			Home: 0,
 			End: last
 		};
@@ -113,8 +120,7 @@
 
 	/** Was ein Screenreader beim Blättern mit den Pfeiltasten vorliest */
 	function valueText(i: number | null): string {
-		if (i === null) return 'Pfeiltasten zeigen die einzelnen Zeiten';
-		const e = points[i].entry;
+		const e = points[i ?? points.length - 1].entry;
 		return (
 			`${formatTime(e.time)}, ${formatDate(e.race.date)}, ${e.competition.name}` +
 			(e === best ? ', Bestzeit' : '')
@@ -137,13 +143,16 @@
 	aria-describedby="{id}-summary"
 	aria-valuemin={1}
 	aria-valuemax={points.length}
-	aria-valuenow={(active ?? 0) + 1}
+	aria-valuenow={(active ?? points.length - 1) + 1}
 	aria-valuetext={valueText(active)}
 	onkeydown={key}
 	onblur={() => (active = null)}
 	onpointermove={pointer}
 	onpointerdown={pointer}
-	onpointerleave={() => (active = null)}
+	onpointerleave={(e) => {
+		// Mit dem Finger bleibt der Wert nach dem Loslassen stehen; weg mit Tippen daneben oder Esc
+		if (e.pointerType === 'mouse') active = null;
+	}}
 >
 	{#if width > 0}
 		<svg {width} height={HEIGHT} aria-hidden="true">
@@ -206,15 +215,15 @@
 		{/if}
 	{/if}
 </div>
-<p id="{id}-summary" class="hint">
-	{summary} Mit der Maus, dem Finger oder den Pfeiltasten einzelne Zeiten anzeigen.
-</p>
+<!-- Die ausführliche Beschreibung ist für Screenreader; sichtbar reicht ein kurzer Hinweis -->
+<p id="{id}-summary" class="visually-hidden">{summary}</p>
+<p class="hint">Tippen oder Pfeiltasten für einzelne Zeiten.</p>
 
 <style>
 	.chart {
 		position: relative;
 		min-height: 232px;
-		margin-top: 0.5rem;
+		margin-top: var(--space-2);
 		touch-action: pan-y;
 		cursor: crosshair;
 	}
@@ -232,7 +241,7 @@
 	.tick,
 	.axis-note {
 		fill: var(--color-muted);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-variant-numeric: tabular-nums;
 	}
 
@@ -253,7 +262,7 @@
 
 	.best-label {
 		fill: var(--color-text);
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 		paint-order: stroke;
 		stroke: var(--color-bg);
@@ -270,18 +279,18 @@
 		transform: translateX(-50%);
 		min-width: 11rem;
 		max-width: 15rem;
-		padding: 0.4rem 0.6rem;
+		padding: var(--space-2) var(--space-2);
 		background: var(--color-bg);
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius);
-		box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
-		font-size: 0.85rem;
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-overlay);
+		font-size: var(--text-sm);
 		pointer-events: none;
-		z-index: 2;
+		z-index: var(--z-overlay);
 	}
 
 	.tooltip strong {
-		font-size: 1rem;
+		font-size: var(--text-base);
 		font-variant-numeric: tabular-nums;
 	}
 

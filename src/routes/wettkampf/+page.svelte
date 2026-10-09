@@ -11,7 +11,7 @@
 	import { COURSE_LABEL, raceLabel, STATUS_LABEL, type Id, type Race } from '#lib/model.ts';
 	import { deleteCompetition, deleteRace } from '#lib/repo.ts';
 	import { bestMarks, buildHistories } from '#lib/stats.ts';
-	import { formatDiff, formatTime } from '#lib/time.ts';
+	import { deviationText, formatTime } from '#lib/time.ts';
 
 	const id = $derived(page.url.searchParams.get('id') ?? '');
 	// undefined = lädt noch, null = nicht gefunden
@@ -37,10 +37,33 @@
 		)
 	);
 
-	/** Lauf, der gerade bearbeitet wird */
+	/** Lauf, der gerade bearbeitet wird; das Formular erscheint in seiner Karte */
 	let editingId = $state<Id | null>(null);
+	/** true: "Zeit eintragen", das Formular springt direkt ins Feld Endzeit */
+	let enterResult = $state(false);
+	/** Zuletzt gespeicherter Lauf: Seine Karte zeigt das Ergebnis sichtbar an */
+	let savedId = $state<Id | null>(null);
 	/** Meldung für Screenreader nach Speichern/Löschen */
 	let status = $state('');
+
+	/** Erst leeren, dann setzen: Sonst wird dieselbe Meldung beim zweiten Mal nicht vorgelesen */
+	async function announce(text: string) {
+		status = '';
+		await tick();
+		status = text;
+	}
+
+	/**
+	 * Name eines Laufs, eindeutig auch bei Vorlauf und Final derselben Strecke:
+	 * "100 m Brust", bei mehreren "100 m Brust, 2. Lauf".
+	 */
+	function raceName(race: Race): string {
+		const same = ($races ?? []).filter(
+			(r) => r.stroke === race.stroke && r.distance === race.distance
+		);
+		if (same.length < 2) return raceLabel(race);
+		return `${raceLabel(race)}, ${same.indexOf(race) + 1}. Lauf`;
+	}
 
 	const multiDay = $derived(!!$competition?.endDate);
 
@@ -52,17 +75,37 @@
 		await goto(resolve('/'));
 	}
 
-	/** Formular öffnen und Fokus dorthin setzen, sonst merkt man auf dem Handy nichts */
-	async function startEdit(race: Race) {
+	/** Formular in der Karte öffnen und Fokus dorthin setzen, sonst merkt man auf dem Handy nichts */
+	async function startEdit(race: Race, result = false) {
 		editingId = race.id;
+		enterResult = result;
+		savedId = null;
 		await tick();
-		document.getElementById('race-form-heading')?.focus();
+		// Bei "Zeit eintragen" setzt das Formular den Fokus selbst ins Feld Endzeit
+		if (!result) document.getElementById(`race-form-heading-${race.id}`)?.focus();
+	}
+
+	/** Nach dem Speichern die Karte mit dem Ergebnis zeigen, nicht das leere Formular unten */
+	async function finishEdit(race: Race) {
+		editingId = null;
+		savedId = race.id;
+		announce('Lauf gespeichert.');
+		await tick();
+		const saved = document.getElementById(`saved-${race.id}`);
+		saved?.scrollIntoView({ block: 'center' });
+		saved?.focus();
 	}
 
 	async function removeRace(race: Race) {
-		if (!confirm(`${raceLabel(race)} endgültig löschen?`)) return;
+		if (!confirm(`${raceName(race)} endgültig löschen?`)) return;
+		// Fokus danach auf den nächsten Lauf, sonst auf die Überschrift "Läufe"
+		const list = $races ?? [];
+		const neighbour = list[list.indexOf(race) + 1] ?? list[list.indexOf(race) - 1];
+		const name = raceName(race);
 		await deleteRace(race.id);
-		status = `${raceLabel(race)} gelöscht.`;
+		announce(`${name} gelöscht.`);
+		await tick();
+		document.getElementById(neighbour ? `race-${neighbour.id}` : 'races-heading')?.focus();
 	}
 
 	function resultText(race: Race): string {
@@ -71,10 +114,35 @@
 			: STATUS_LABEL[race.status];
 	}
 
-	function deviation(race: Race): string {
-		return race.result !== undefined && race.target !== undefined
-			? formatDiff(race.result - race.target)
-			: '–';
+	/** Die Zeile unter dem Resultat: Abweichung in Worten oder nur das Ziel */
+	function targetLine(race: Race): string | undefined {
+		if (race.target === undefined) return undefined;
+		if (race.status === 'finished' && race.result !== undefined) {
+			return `${deviationText(race.result, race.target)} (${formatTime(race.target)})`;
+		}
+		return `Ziel ${formatTime(race.target)}`;
+	}
+
+	function faster(race: Race): boolean {
+		return race.result !== undefined && race.target !== undefined && race.result <= race.target;
+	}
+
+	/** Was nach dem Speichern sichtbar bestätigt wird */
+	function savedText(race: Race): string {
+		const parts: string[] = [];
+		if (race.status === 'finished' && race.result !== undefined) {
+			parts.push(formatTime(race.result));
+			if (race.target !== undefined) parts.push(deviationText(race.result, race.target));
+			if ($marks?.pb.has(race.id)) parts.push('Neue Bestzeit!');
+			else if ($marks?.sb.has(race.id)) parts.push('Neue Saisonbestzeit!');
+		}
+		return parts.length ? `Gespeichert: ${parts.join(' · ')}` : 'Gespeichert.';
+	}
+
+	/** Meldeschluss in den nächsten 7 Tagen hervorheben */
+	function deadlineSoon(deadline: string): boolean {
+		const days = daysBetween(todayIso(), deadline);
+		return days >= 0 && days <= 7;
 	}
 </script>
 
@@ -100,7 +168,7 @@
 		<dd>{COURSE_LABEL[c.course]}</dd>
 		{#if c.entryDeadline}
 			<dt>Meldeschluss</dt>
-			<dd>
+			<dd class:warning={deadlineSoon(c.entryDeadline)}>
 				{formatDate(c.entryDeadline)} ({relativeDays(daysBetween(todayIso(), c.entryDeadline))})
 			</dd>
 		{/if}
@@ -108,65 +176,87 @@
 
 	<div class="actions">
 		<a class="button secondary" href={resolve(`/wettkampf/bearbeiten?id=${c.id}`)}>Bearbeiten</a>
-		<button class="button secondary" type="button" onclick={removeCompetition}>Löschen</button>
+		<button class="button danger-outline push-end" type="button" onclick={removeCompetition}
+			>Wettkampf löschen</button
+		>
 	</div>
 
-	<h2>Läufe</h2>
+	<h2 id="races-heading" tabindex="-1">Läufe</h2>
 	<p class="visually-hidden" aria-live="polite">{status}</p>
 
 	{#if $races && $races.length > 0}
 		<!-- Karten statt Tabelle: auf dem Handy hat eine Tabelle mit 5 Spalten keinen Platz -->
 		<ul class="race-list">
 			{#each $races as race (race.id)}
-				<li class="card">
-					<div class="race-head">
-						<strong>{raceLabel(race)}</strong>
-						{#if multiDay}<span>{formatDate(race.date)}</span>{/if}
-					</div>
-					<dl class="race-times">
-						<div>
-							<dt>Ziel</dt>
-							<dd>{race.target !== undefined ? formatTime(race.target) : '–'}</dd>
+				<li class="card" class:editing={editingId === race.id}>
+					{#if editingId === race.id}
+						<h3 id="race-form-heading-{race.id}" tabindex="-1">
+							{enterResult ? 'Zeit eintragen' : 'Bearbeiten'}: {raceName(race)}
+						</h3>
+						{#key race.id}
+							<RaceForm
+								competition={c}
+								{race}
+								{enterResult}
+								onsaved={() => finishEdit(race)}
+								oncancel={() => (editingId = null)}
+							/>
+						{/key}
+					{:else}
+						<div class="race-head">
+							<h3 id="race-{race.id}" tabindex="-1">{raceName(race)}</h3>
+							{#if multiDay}<span class="muted">{formatDate(race.date)}</span>{/if}
 						</div>
-						<div>
-							<dt>Resultat</dt>
-							<dd>{resultText(race)}</dd>
+						<div class="result-line">
+							<span class="result" class:pending={race.status !== 'finished'}
+								>{resultText(race)}</span
+							>
 							{#if $marks?.pb.has(race.id)}
-								<dd><span class="badge">Bestzeit</span></dd>
+								<span class="badge pb">Bestzeit</span>
 							{:else if $marks?.sb.has(race.id)}
-								<dd><span class="badge">Saisonbestzeit</span></dd>
+								<span class="badge sb">Saisonbestzeit</span>
 							{/if}
 						</div>
-						<div>
-							<dt>Abweichung</dt>
-							<dd>{deviation(race)}</dd>
+						{#if targetLine(race)}
+							<p class="target-line" class:faster={faster(race)}>{targetLine(race)}</p>
+						{/if}
+						{#if savedId === race.id}
+							<p id="saved-{race.id}" class="saved" tabindex="-1">{savedText(race)}</p>
+						{/if}
+						{#if race.status === 'finished' && race.result !== undefined && race.splits.length > 0}
+							<details>
+								<summary>Zwischenzeiten</summary>
+								<SplitTable
+									splits={race.splits}
+									distance={race.distance}
+									result={race.result}
+									chart
+								/>
+							</details>
+						{/if}
+						<div class="row-actions">
+							{#if race.status === 'planned'}
+								<button
+									class="button small"
+									type="button"
+									onclick={() => startEdit(race, true)}
+									aria-label="Zeit eintragen für {raceName(race)}">Zeit eintragen</button
+								>
+							{/if}
+							<button
+								class="button secondary small"
+								type="button"
+								onclick={() => startEdit(race)}
+								aria-label="{raceName(race)} bearbeiten">Bearbeiten</button
+							>
+							<button
+								class="button danger-outline small push-end"
+								type="button"
+								onclick={() => removeRace(race)}
+								aria-label="{raceName(race)} löschen">Löschen</button
+							>
 						</div>
-					</dl>
-					{#if race.status === 'finished' && race.result !== undefined && race.splits.length > 0}
-						<details>
-							<summary>Zwischenzeiten</summary>
-							<SplitTable
-								splits={race.splits}
-								distance={race.distance}
-								result={race.result}
-								chart
-							/>
-						</details>
 					{/if}
-					<div class="row-actions">
-						<button
-							class="button secondary small"
-							type="button"
-							onclick={() => startEdit(race)}
-							aria-label="{raceLabel(race)} bearbeiten">Bearbeiten</button
-						>
-						<button
-							class="button secondary small"
-							type="button"
-							onclick={() => removeRace(race)}
-							aria-label="{raceLabel(race)} löschen">Löschen</button
-						>
-					</div>
 				</li>
 			{/each}
 		</ul>
@@ -174,34 +264,28 @@
 		<p>Noch keine Läufe.</p>
 	{/if}
 
-	{@const editing = $races?.find((r) => r.id === editingId)}
-	{#if editing}
-		<h3 id="race-form-heading" tabindex="-1">{raceLabel(editing)} bearbeiten</h3>
-		{#key editing.id}
-			<RaceForm
-				competition={c}
-				race={editing}
-				onsaved={() => {
-					status = 'Lauf gespeichert.';
-					editingId = null;
-				}}
-				oncancel={() => (editingId = null)}
-			/>
-		{/key}
-	{:else}
-		<h3>Lauf hinzufügen</h3>
-		<!-- Nach dem Speichern neu aufbauen, damit das Formular wieder leer ist -->
-		{#key $races?.length}
-			<RaceForm competition={c} onsaved={() => (status = 'Lauf hinzugefügt.')} />
-		{/key}
-	{/if}
+	<h2>Lauf hinzufügen</h2>
+	<!-- Nach dem Speichern neu aufbauen, damit das Formular wieder leer ist -->
+	{#key $races?.length}
+		<RaceForm
+			competition={c}
+			onsaved={async (newId) => {
+				savedId = newId;
+				announce('Lauf hinzugefügt.');
+				await tick();
+				const saved = document.getElementById(`saved-${newId}`);
+				saved?.scrollIntoView({ block: 'center' });
+				saved?.focus();
+			}}
+		/>
+	{/key}
 {/if}
 
 <style>
 	.facts {
 		display: grid;
 		grid-template-columns: max-content 1fr;
-		gap: 0.25rem 1rem;
+		gap: var(--space-1) var(--space-4);
 	}
 
 	.facts dt {
@@ -220,29 +304,66 @@
 	.race-head {
 		display: flex;
 		justify-content: space-between;
-		gap: 1rem;
+		gap: var(--space-4);
 	}
 
-	.race-times {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 0.5rem;
-		margin: 0.5rem 0;
+	.race-head h3 {
+		margin: 0;
+		font-size: var(--text-base);
 	}
 
-	.race-times dt {
-		font-size: 0.85rem;
+	.muted {
 		color: var(--color-muted);
 	}
 
-	.race-times dd {
-		margin: 0;
-		font-weight: 600;
+	/* Das Resultat ist die Zahl, um die es geht */
+	.result-line {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: var(--space-2) var(--space-3);
+		margin-top: var(--space-1);
+	}
+
+	.result {
+		font-size: 1.5rem;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: -0.01em;
+	}
+
+	.result.pending {
+		font-size: var(--text-base);
+		font-weight: 400;
+		color: var(--color-muted);
+	}
+
+	.target-line {
+		margin: 0 0 var(--space-2);
+		color: var(--color-muted);
 		font-variant-numeric: tabular-nums;
 	}
 
+	.target-line.faster {
+		color: var(--color-primary);
+		font-weight: 600;
+	}
+
+	.saved {
+		margin: 0 0 var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background: var(--color-bg);
+		border-radius: var(--radius-md);
+		font-weight: 600;
+	}
+
+	.card.editing {
+		background: var(--color-bg);
+		border: 1px solid var(--color-line);
+	}
+
 	details {
-		margin-bottom: 0.5rem;
+		margin-bottom: var(--space-2);
 	}
 
 	summary {
@@ -254,6 +375,11 @@
 	.row-actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2);
+	}
+
+	/* Löschen weg von Bearbeiten, damit man mit nassen Fingern nicht daneben tippt */
+	.push-end {
+		margin-left: auto;
 	}
 </style>

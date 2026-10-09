@@ -118,7 +118,7 @@
 <style>
 	th,
 	td {
-		padding-block: 0.25rem;
+		padding-block: var(--space-1);
 		white-space: nowrap;
 	}
 
@@ -127,6 +127,6 @@
 	}
 
 	.halves {
-		padding-left: 1.2rem;
+		padding-left: var(--space-5);
 	}
 </style>

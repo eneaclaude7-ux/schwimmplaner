@@ -68,7 +68,9 @@
 	<a
 		href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement"
 		rel="noopener noreferrer"
-		target="_blank">Datenschutzerklärung von GitHub</a
+		target="_blank"
+		>Datenschutzerklärung von GitHub<span class="visually-hidden">, öffnet ein neues Fenster</span
+		></a
 	>.
 </p>
 
@@ -109,13 +111,13 @@
 
 <style>
 	.draft {
-		padding: 0.75rem 1rem;
+		padding: var(--space-3) var(--space-4);
 		border: 2px solid var(--color-warning);
-		border-radius: var(--radius);
+		border-radius: var(--radius-lg);
 		color: var(--color-warning);
 	}
 
 	h2 {
-		margin-top: 1.75rem;
+		margin-top: var(--space-8);
 	}
 </style>

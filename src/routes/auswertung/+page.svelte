@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { liveQuery } from 'dexie';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { db } from '#lib/db.ts';
 	import { formatDate, todayIso } from '#lib/dates.ts';
 	import { COURSE_LABEL, raceLabel, type Course, type Hs } from '#lib/model.ts';
@@ -27,27 +29,69 @@
 		$data ? buildHistories($data.races, $data.competitions, $data.seasons) : []
 	);
 
+	// Bahnlänge und Saison stehen in der Adresse, damit "Zurück" am selben Ort landet
+	const bahnParam = $derived(page.url.searchParams.get('bahn'));
+	const seasonParam = $derived(page.url.searchParams.get('saison'));
+
+	/** Ohne Wahl: die Bahnlänge des letzten Rennens, nicht immer Kurzbahn */
+	const latest = $derived(
+		histories
+			.flatMap((h) => h.entries.map((e) => ({ h, e })))
+			.reduce<{ h: (typeof histories)[number]; e: Entry } | undefined>(
+				(best, x) => (!best || x.e.race.date > best.e.race.date ? x : best),
+				undefined
+			)
+	);
+
 	// Kurz- und Langbahn werden nie gemischt: es ist immer genau eine gewählt
-	let course = $state<Course>('SCM');
+	const course = $derived<Course>(
+		bahnParam === 'SCM' || bahnParam === 'LCM' ? bahnParam : (latest?.h.course ?? 'SCM')
+	);
 	const shown = $derived(histories.filter((h) => h.course === course));
 	const otherCount = $derived(histories.length - shown.length);
 
+	/** Offen ist nur die Strecke mit dem jüngsten Rennen; die anderen klappt man bei Bedarf auf */
+	const openKey = $derived(
+		shown
+			.map((h) => ({ key: h.key, date: h.entries.at(-1)!.race.date }))
+			.sort((a, b) => b.date.localeCompare(a.date))[0]?.key
+	);
+
 	// Standard ist die laufende Saison
-	let seasonId = $state<string | null>(null);
 	const season = $derived(
 		$data
-			? ($data.seasons.find((s) => s.id === seasonId) ?? seasonForDate($data.seasons, todayIso()))
+			? ($data.seasons.find((s) => s.id === seasonParam) ??
+					seasonForDate($data.seasons, todayIso()))
 			: undefined
 	);
+
+	function href(next: { bahn?: Course; saison?: string }): string {
+		const params = new URLSearchParams();
+		params.set('bahn', next.bahn ?? course);
+		const saison = next.saison ?? seasonParam;
+		if (saison) params.set('saison', saison);
+		return resolve(`/auswertung?${params}`);
+	}
+
+	/** Strecke aus der Übersicht öffnen und hinspringen */
+	function open(key: string) {
+		const details = document.getElementById(key) as HTMLDetailsElement | null;
+		if (details) details.open = true;
+	}
 
 	function targetDiff(entry: Entry): string {
 		return entry.race.target === undefined ? '–' : formatDiff(entry.time - entry.race.target);
 	}
 </script>
 
+<!-- Leere Zelle: sichtbar ein Strich, vorgelesen "keine" -->
+{#snippet none()}
+	<span aria-hidden="true">–</span><span class="visually-hidden">keine</span>
+{/snippet}
+
 <!-- Differenz mit Prozent darunter (schmaler auf dem Handy), oder "–" ohne Vergleichszeit -->
 {#snippet diff(time: Hs, base: Hs | undefined)}
-	{#if base === undefined}–{:else}{formatDiff(time - base)}<br /><span class="small"
+	{#if base === undefined}{@render none()}{:else}{formatDiff(time - base)}<br /><span class="small"
 			>{formatPercent(time - base, base)}</span
 		>{/if}
 {/snippet}
@@ -67,14 +111,16 @@
 	</p>
 {:else}
 	<div class="filters">
-		<fieldset>
-			<legend>Bahnlänge</legend>
-			<div class="radio-row">
-				{#each ['SCM', 'LCM'] as const as value (value)}
-					<label><input type="radio" bind:group={course} {value} /> {COURSE_LABEL[value]}</label>
-				{/each}
-			</div>
-		</fieldset>
+		<nav class="tabs" aria-label="Bahnlänge">
+			{#each ['SCM', 'LCM'] as const as value (value)}
+				<a
+					href={href({ bahn: value })}
+					aria-current={course === value ? 'page' : undefined}
+					data-sveltekit-replacestate
+					data-sveltekit-reset="false">{COURSE_LABEL[value]}</a
+				>
+			{/each}
+		</nav>
 
 		{#if $data.seasons.length > 0}
 			<div class="field">
@@ -82,7 +128,11 @@
 				<select
 					id="season"
 					value={season?.id ?? ''}
-					onchange={(e) => (seasonId = e.currentTarget.value)}
+					onchange={(e) =>
+						goto(href({ saison: e.currentTarget.value }), {
+							replace: true,
+							reset: false
+						})}
 				>
 					{#each $data.seasons as s (s.id)}
 						<option value={s.id}>{s.name}</option>
@@ -91,6 +141,11 @@
 			</div>
 		{/if}
 	</div>
+
+	<p class="visually-hidden" aria-live="polite">
+		{COURSE_LABEL[course]}: {shown.length}
+		{shown.length === 1 ? 'Strecke' : 'Strecken'}{season ? `, Saison ${season.name}` : ''}
+	</p>
 
 	{#if !season}
 		<p class="hint">
@@ -107,6 +162,7 @@
 		<h2>Übersicht {COURSE_LABEL[course]}</h2>
 		<div class="table-wrap">
 			<table>
+				<caption class="visually-hidden">Bestzeiten {COURSE_LABEL[course]}</caption>
 				<thead>
 					<tr>
 						<th scope="col">Strecke</th>
@@ -122,14 +178,21 @@
 						{@const pb = personalBest(h)!}
 						{@const sb = season ? seasonBest(h, season) : undefined}
 						<tr>
-							<th scope="row"><a href="#{h.key}">{raceLabel(h)}</a></th>
+							<th scope="row">
+								<a href="#{h.key}" onclick={() => open(h.key)}>{raceLabel(h)}</a>
+							</th>
 							<td class="num">
 								{formatTime(pb.time)}<br /><span class="small">{formatDate(pb.race.date)}</span>
 							</td>
 							{#if season}
-								<td class="num">{sb ? formatTime(sb.time) : '–'}</td>
+								<td class="num"
+									>{#if sb}{formatTime(sb.time)}{:else}{@render none()}{/if}</td
+								>
 								<td class="num">
-									{#if sb}{@render diff(sb.time, bestBeforeDate(h, season.startDate))}{:else}–{/if}
+									{#if sb}{@render diff(
+											sb.time,
+											bestBeforeDate(h, season.startDate)
+										)}{:else}{@render none()}{/if}
 								</td>
 							{/if}
 						</tr>
@@ -144,8 +207,8 @@
 
 		{#each shown as h (h.key)}
 			{@const pb = personalBest(h)!}
-			<section aria-labelledby={h.key}>
-				<h2 id={h.key}>{raceLabel(h)}, {COURSE_LABEL[h.course]}</h2>
+			<details class="event" id={h.key} open={h.key === openKey}>
+				<summary><h2>{raceLabel(h)}, {COURSE_LABEL[h.course]}</h2></summary>
 				{#if h.entries.length >= 2}
 					<ProgressChart
 						entries={h.entries}
@@ -157,6 +220,7 @@
 				{/if}
 				<div class="table-wrap">
 					<table>
+						<caption class="visually-hidden">Alle Zeiten {raceLabel(h)}, neueste zuerst</caption>
 						<thead>
 							<tr>
 								<th scope="col">Datum, Wettkampf</th>
@@ -178,9 +242,11 @@
 									>
 									<td class="num">
 										<strong>{formatTime(e.time)}</strong>
-										{#if e === pb}<br /><span class="badge">Bestzeit</span>{/if}
+										{#if e === pb}<br /><span class="badge pb">Bestzeit</span>{/if}
 									</td>
-									<td class="num">{targetDiff(e)}</td>
+									<td class="num">
+										{#if e.race.target !== undefined}{targetDiff(e)}{:else}{@render none()}{/if}
+									</td>
 									<td class="num">{@render diff(e.time, e.previous)}</td>
 									<td class="num">{@render diff(e.time, e.bestBefore)}</td>
 								</tr>
@@ -200,7 +266,7 @@
 						/>
 					</details>
 				{/if}
-			</section>
+			</details>
 		{/each}
 	{/if}
 {/if}
@@ -210,15 +276,39 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: flex-end;
-		gap: 0 2rem;
+		justify-content: space-between;
+		gap: 0 var(--space-8);
+		border-bottom: 1px solid var(--color-line);
+		margin-bottom: var(--space-4);
 	}
 
-	section {
-		margin-top: 2rem;
+	.filters .tabs {
+		margin-bottom: -1px;
+	}
+
+	.filters .field {
+		margin-bottom: var(--space-2);
+	}
+
+	/* Jede Strecke klappt einzeln auf, damit man nicht an allen vorbeiscrollen muss */
+	.event {
+		margin-top: var(--space-4);
+		border-top: 1px solid var(--color-line);
+	}
+
+	.event summary {
+		cursor: pointer;
+		padding-block: var(--space-2);
+	}
+
+	.event summary h2 {
+		display: inline;
+		margin: 0;
+		font-size: var(--text-lg);
 	}
 
 	.compare {
-		margin-top: 1rem;
+		margin-top: var(--space-4);
 	}
 
 	.compare summary {
@@ -230,7 +320,7 @@
 	/* Weniger Abstand, damit fünf Spalten auf ein Handy passen */
 	th,
 	td {
-		padding-inline: 0.2rem;
+		padding-inline: var(--space-1);
 	}
 
 	/* "−0.80 s" nie umbrechen */
@@ -239,7 +329,7 @@
 	}
 
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		color: var(--color-muted);
 	}
 </style>

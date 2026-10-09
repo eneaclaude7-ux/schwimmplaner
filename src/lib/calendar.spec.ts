@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, calendarItems, isMonth, layoutWeek, monthLabel, monthWeeks } from './calendar';
+import {
+	addMonths,
+	calendarItems,
+	isMonth,
+	layoutWeek,
+	monthLabel,
+	monthWeeks,
+	nextDeadline
+} from './calendar';
 import { addDays, weekday } from './dates';
 import type { Competition } from './model';
 
@@ -99,5 +107,25 @@ describe('layoutWeek', () => {
 
 	it('ignoriert Einträge ausserhalb der Woche', () => {
 		expect(layoutWeek(week, calendarItems([competition('A', '2026-10-20')]))).toEqual([]);
+	});
+});
+
+describe('nextDeadline', () => {
+	const list = [
+		competition('Vorbei', '2026-10-20', undefined, '2026-10-01'),
+		competition('Später', '2026-11-20', undefined, '2026-11-02'),
+		competition('Bald', '2026-10-25', undefined, '2026-10-12'),
+		competition('Ohne', '2026-10-30')
+	];
+
+	it('findet den nächsten offenen Meldeschluss über alle Monate', () => {
+		expect(nextDeadline(list, '2026-10-09')?.name).toBe('Bald');
+		expect(nextDeadline(list, '2026-10-12')?.name).toBe('Bald');
+		expect(nextDeadline(list, '2026-10-13')?.name).toBe('Später');
+	});
+
+	it('gibt undefined, wenn kein Meldeschluss mehr offen ist', () => {
+		expect(nextDeadline(list, '2026-11-03')).toBeUndefined();
+		expect(nextDeadline([], '2026-10-09')).toBeUndefined();
 	});
 });

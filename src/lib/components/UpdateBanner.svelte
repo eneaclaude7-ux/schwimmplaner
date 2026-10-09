@@ -62,11 +62,14 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem;
-		max-width: 48rem;
-		margin: 0.5rem auto 0;
-		padding: 0.5rem 1rem;
+		gap: var(--space-2);
+		/* Gleich breit wie der Inhalt darunter, auch auf dem Handy mit Rand */
+		box-sizing: border-box;
+		width: min(46rem, calc(100% - 2 * var(--space-4)));
+		margin: var(--space-2) auto 0;
+		padding: var(--space-2) var(--space-4);
 		background: var(--color-surface);
-		border-left: 4px solid var(--color-primary);
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius-lg);
 	}
 </style>

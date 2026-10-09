@@ -49,3 +49,10 @@ export function formatDiff(hs: Hs): string {
 	const sign = hs < 0 ? '−' : hs > 0 ? '+' : '±';
 	return `${sign}${formatTime(Math.abs(hs))} s`;
 }
+
+/** Abweichung vom Ziel in Worten: "0.80 s schneller als Ziel", "genau im Ziel" */
+export function deviationText(result: Hs, target: Hs): string {
+	const diff = result - target;
+	if (diff === 0) return 'genau im Ziel';
+	return `${formatTime(Math.abs(diff))} s ${diff < 0 ? 'schneller' : 'langsamer'} als Ziel`;
+}

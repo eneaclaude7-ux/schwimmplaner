@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { liveQuery } from 'dexie';
 	import { resolve } from '$app/paths';
 	import { db } from '#lib/db.ts';
@@ -98,6 +99,9 @@
 			clear();
 			savedId = id;
 			message = `${count(n, 'Lauf', 'Läufe')} gespeichert.`;
+			// Die Knöpfe verschwinden: Fokus auf die Meldung, sonst landet er im Nichts
+			await tick();
+			document.getElementById('lenex-status')?.focus();
 		} catch {
 			saveError = 'Speichern fehlgeschlagen. Es wurde nichts gespeichert.';
 		} finally {
@@ -105,9 +109,11 @@
 		}
 	}
 
-	function cancel() {
+	async function cancel() {
 		clear();
 		message = 'Import abgebrochen. Nichts wurde gespeichert.';
+		await tick();
+		document.getElementById('lenex-status')?.focus();
 	}
 
 	function resultText(race: ImportedRace): string {
@@ -139,7 +145,7 @@
 </div>
 
 <!-- Bleibt immer im DOM, sonst lesen Screenreader neue Meldungen nicht vor -->
-<div aria-live="polite">
+<div id="lenex-status" tabindex="-1" aria-live="polite">
 	{#if error}
 		<p id="lenex-error" class="error">{error}</p>
 	{:else if message}
@@ -173,6 +179,9 @@
 		<div class="field">
 			<label for="lenex-search">Name oder Verein suchen</label>
 			<input id="lenex-search" type="search" bind:value={search} autocomplete="off" />
+			<p class="visually-hidden" aria-live="polite">
+				{search.trim() ? `${count(athletes.length, 'Treffer', 'Treffer')}` : ''}
+			</p>
 		</div>
 		<div class="field">
 			<label for="lenex-athlete">Athlet oder Athletin</label>
@@ -267,7 +276,7 @@
 
 <style>
 	h3 {
-		margin-top: 1.5rem;
+		margin-top: var(--space-6);
 	}
 
 	button:disabled {

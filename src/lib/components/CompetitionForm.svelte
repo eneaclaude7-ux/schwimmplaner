@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
+	import { errorAnnouncement, focusFirstError } from '#lib/forms.ts';
 	import type { Competition, Id, IsoDate } from '#lib/model.ts';
 	import { saveCompetition } from '#lib/repo.ts';
 	import { validateCompetition, type CompetitionInput } from '#lib/validation.ts';
@@ -26,6 +27,9 @@
 	});
 	let errors = $state<Partial<Record<keyof CompetitionInput, string>>>({});
 	let saving = $state(false);
+	let formEl = $state<HTMLFormElement>();
+	/** Meldung für Screenreader, falls der Fokus schon im fehlerhaften Feld war */
+	let alert = $state('');
 
 	/** Die Fehlermeldung eines Feldes verschwindet, sobald man es ändert */
 	function clearError(event: Event) {
@@ -41,9 +45,11 @@
 		const result = validateCompetition(form);
 		if (!result.ok) {
 			errors = result.errors;
-			// Fokus auf das erste fehlerhafte Feld, damit man es sofort sieht und hört
-			const first = Object.keys(result.errors)[0];
-			document.getElementById(`competition-${first}`)?.focus();
+			alert = '';
+			await tick();
+			// Fokus auf das oberste fehlerhafte Feld, damit man es sofort sieht und hört
+			if (formEl) focusFirstError(formEl);
+			alert = errorAnnouncement(Object.values(result.errors).filter((m): m is string => !!m));
 			return;
 		}
 		errors = {};
@@ -56,11 +62,14 @@
 	}
 </script>
 
-<form onsubmit={submit} oninput={clearError} onchange={clearError} novalidate>
+<form bind:this={formEl} onsubmit={submit} oninput={clearError} onchange={clearError} novalidate>
+	<p class="hint">Felder ohne «optional» müssen ausgefüllt sein.</p>
+	<p class="visually-hidden" aria-live="assertive">{alert}</p>
 	<div class="field">
 		<label for="competition-name">Name</label>
 		<input
 			id="competition-name"
+			aria-required="true"
 			bind:value={form.name}
 			autocomplete="off"
 			aria-invalid={!!errors.name}
@@ -74,6 +83,7 @@
 			<label for="competition-startDate">Erster Tag</label>
 			<input
 				id="competition-startDate"
+				aria-required="true"
 				type="date"
 				bind:value={form.startDate}
 				aria-invalid={!!errors.startDate}
@@ -105,6 +115,7 @@
 		<label for="competition-location">Ort</label>
 		<input
 			id="competition-location"
+			aria-required="true"
 			bind:value={form.location}
 			aria-invalid={!!errors.location}
 			aria-describedby={errors.location ? 'competition-location-error' : undefined}

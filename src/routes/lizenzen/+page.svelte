@@ -25,14 +25,17 @@
 			<strong>{lib.name}</strong>
 			{lib.version} · {lib.license}
 			{#if lib.url}
-				· <a href={lib.url} rel="noopener noreferrer" target="_blank">Website</a>
+				· <a href={lib.url} rel="noopener noreferrer" target="_blank"
+					>Website<span class="visually-hidden"> von {lib.name}, öffnet ein neues Fenster</span></a
+				>
 			{/if}
 			<details>
-				<summary>Lizenztext</summary>
-				<pre>{lib.text}</pre>
+				<summary>Lizenztext<span class="visually-hidden"> {lib.name}</span></summary>
+				<!-- Die Lizenztexte sind englisch: Screenreader sollen sie nicht mit deutscher Stimme lesen -->
+				<pre lang="en">{lib.text}</pre>
 				{#if lib.notice}
-					<p><strong>NOTICE</strong></p>
-					<pre>{lib.notice}</pre>
+					<p lang="en"><strong>NOTICE</strong></p>
+					<pre lang="en">{lib.notice}</pre>
 				{/if}
 			</details>
 		</li>
@@ -49,15 +52,15 @@
 		cursor: pointer;
 		color: var(--color-primary);
 		font-weight: 600;
-		margin-top: 0.25rem;
+		margin-top: var(--space-1);
 	}
 
 	pre {
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		background: var(--color-bg);
-		padding: 0.5rem;
-		border-radius: var(--radius);
+		padding: var(--space-2);
+		border-radius: var(--radius-md);
 	}
 </style>

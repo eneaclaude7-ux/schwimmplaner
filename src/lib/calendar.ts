@@ -118,3 +118,14 @@ export function layoutWeek(week: IsoDate[], items: CalendarItem[]): Placed[] {
 		};
 	});
 }
+
+/** Der nächste Meldeschluss, der noch nicht vorbei ist, über alle Monate hinweg */
+export function nextDeadline(competitions: Competition[], today: IsoDate): Competition | undefined {
+	let next: Competition | undefined;
+	for (const c of competitions) {
+		if (c.entryDeadline && c.entryDeadline >= today) {
+			if (!next || c.entryDeadline < next.entryDeadline!) next = c;
+		}
+	}
+	return next;
+}

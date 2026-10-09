@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDiff, formatTime, parseTime } from './time';
+import { deviationText, formatDiff, formatTime, parseTime } from './time';
 
 describe('parseTime', () => {
 	it('liest Minuten, Sekunden und Hundertstel', () => {
@@ -57,5 +57,13 @@ describe('formatDiff', () => {
 		expect(formatDiff(parseTime('1:09.20')! - parseTime('1:10.40')!)).toBe('−1.20 s');
 		expect(formatDiff(85)).toBe('+0.85 s');
 		expect(formatDiff(0)).toBe('±0.00 s');
+	});
+});
+
+describe('deviationText', () => {
+	it('sagt in Worten, ob schneller oder langsamer als das Ziel', () => {
+		expect(deviationText(6920, 7000)).toBe('0.80 s schneller als Ziel');
+		expect(deviationText(7120, 7000)).toBe('1.20 s langsamer als Ziel');
+		expect(deviationText(7000, 7000)).toBe('genau im Ziel');
 	});
 });

@@ -64,9 +64,16 @@
 
 	function key(event: KeyboardEvent) {
 		const last = labels.length - 1;
+		// Wie ein Schieberegler: links/unten zurück, rechts/oben vor, Bild-Tasten in Dreierschritten
+		const back = (step: number) => Math.max(0, (active ?? last + 1) - step);
+		const forward = (step: number) => Math.min(last, (active ?? -1) + step);
 		const moves: Record<string, number> = {
-			ArrowLeft: Math.max(0, (active ?? last + 1) - 1),
-			ArrowRight: Math.min(last, (active ?? -1) + 1),
+			ArrowLeft: back(1),
+			ArrowDown: back(1),
+			ArrowRight: forward(1),
+			ArrowUp: forward(1),
+			PageDown: back(3),
+			PageUp: forward(3),
 			Home: 0,
 			End: last
 		};
@@ -113,12 +120,16 @@
 	aria-valuemin={1}
 	aria-valuemax={labels.length}
 	aria-valuenow={(active ?? 0) + 1}
+	aria-describedby="{id}-hint"
 	aria-valuetext={valueText(active)}
 	onkeydown={key}
 	onblur={() => (active = null)}
 	onpointermove={pointer}
 	onpointerdown={pointer}
-	onpointerleave={() => (active = null)}
+	onpointerleave={(e) => {
+		// Mit dem Finger bleibt der Wert nach dem Loslassen stehen; weg mit Tippen daneben oder Esc
+		if (e.pointerType === 'mouse') active = null;
+	}}
 >
 	{#if width > 0}
 		<svg {width} height={HEIGHT} aria-hidden="true">
@@ -191,32 +202,29 @@
 		{/if}
 	{/if}
 </div>
-<p id="{id}-hint" class="hint">
-	Lap-Zeit pro Abschnitt, schnellere Laps oben. Mit der Maus, dem Finger oder den Pfeiltasten
-	einzelne Abschnitte anzeigen.
-</p>
+<p id="{id}-hint" class="hint">Lap-Zeit pro Abschnitt, schnellere oben. Tippen für Details.</p>
 
 <style>
 	.legend {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.25rem 1.25rem;
+		gap: var(--space-1) var(--space-5);
 		list-style: none;
 		padding: 0;
-		margin: 0.5rem 0 0;
-		font-size: 0.85rem;
+		margin: var(--space-2) 0 0;
+		font-size: var(--text-sm);
 	}
 
 	.legend li {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-2);
 	}
 
 	.chart {
 		position: relative;
 		min-height: 200px;
-		margin-top: 0.25rem;
+		margin-top: var(--space-1);
 		touch-action: pan-y;
 		cursor: crosshair;
 	}
@@ -233,7 +241,7 @@
 
 	.tick {
 		fill: var(--color-muted);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-variant-numeric: tabular-nums;
 	}
 
@@ -256,7 +264,7 @@
 
 	.end-label {
 		fill: var(--color-text);
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 	}
 
@@ -264,20 +272,20 @@
 		position: absolute;
 		transform: translateX(-50%);
 		min-width: 8rem;
-		padding: 0.35rem 0.6rem;
+		padding: var(--space-2) var(--space-2);
 		background: var(--color-bg);
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius);
-		box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
-		font-size: 0.85rem;
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-overlay);
+		font-size: var(--text-sm);
 		pointer-events: none;
-		z-index: 2;
+		z-index: var(--z-overlay);
 	}
 
 	.row {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		font-variant-numeric: tabular-nums;
 	}
 

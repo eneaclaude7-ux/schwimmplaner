@@ -1,22 +1,57 @@
 /* Systemschriften: nichts wird von fremden Servern geladen, keine Lizenzfragen. */
 :root {
 	--color-text: #1a1a1a;
-	--color-muted: #555;
+	--color-muted: #444; /* 9.7:1 auf Weiss, APCA etwa Lc 92 für kleine Hinweise */
 	--color-bg: #ffffff;
 	--color-surface: #f2f5f8;
 	--color-primary: #0b4f8a; /* Kontrast auf Weiss 8.4:1 (WCAG AA verlangt 4.5:1) */
+	--color-primary-hover: #083c69; /* dunkler beim Darüberfahren */
 	--color-danger: #b00020; /* 7.3:1 */
+	--color-danger-tint: #fdecee; /* Hintergrund beim Darüberfahren über Löschen */
 	--color-warning: #8a4b00; /* 6.8:1 */
 	--color-border: #767676; /* 4.5:1, Formularrahmen brauchen 3:1 */
 	--color-line: #e2e2e2; /* nur Raster im Kalender, keine Bedienelemente */
 	--color-weekend: #fafafa;
+	--color-outside: #f0f0f0; /* Tage aus dem Vor- und Folgemonat */
 	--color-today: #c62828; /* weisse Schrift darauf 5.6:1 */
 	--color-scm: #dbe8f6; /* Kurzbahn, Text darauf 14:1 */
-	--color-lcm: #d9f0e1; /* Langbahn, Text darauf 14:1 */
+	--color-lcm: #b4dfc2; /* Langbahn, deutlich dunkler als Kurzbahn, Text darauf 11:1 */
 	/* Zwei Rennen im Vergleich: geprüft auf Farbsehschwäche (dataviz-Validator), dazu Form als zweites Merkmal */
 	--color-series-a: #2a78d6;
 	--color-series-b: #eb6834;
-	--radius: 8px;
+	--color-on-accent: #ffffff; /* Schrift auf Primär-, Gefahr- und Heute-Farbe */
+
+	/* Abstände: 4-px-Raster, --space-N = N × 4 px */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.25rem;
+	--space-6: 1.5rem;
+	--space-8: 2rem;
+	--space-12: 3rem;
+
+	/* Schriftgrade */
+	--text-2xs: 0.6875rem; /* 11 px, nur Kalenderbalken auf dem Handy */
+	--text-xs: 0.75rem; /* 12 px, Achsen, Balken, Legenden */
+	--text-sm: 0.875rem; /* 14 px, Hinweise, Tooltips */
+	--text-base: 1rem;
+	--text-lg: 1.125rem;
+
+	/* Radien nach Element: klein für Balken, mittel für Bedienelemente, gross für Flächen */
+	--radius-sm: 4px; /* Kalenderbalken, Farbmuster */
+	--radius-md: 6px; /* Knöpfe, Felder */
+	--radius-lg: 10px; /* Karten, Hinweisflächen, Tooltips */
+	--radius-full: 999px; /* Badges, Kreis für heute */
+
+	/* Schatten: zwei Ebenen (Umgebung + direkt), nur für schwebende Elemente */
+	--shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.1);
+
+	/* Ebenen */
+	--z-raised: 1; /* Kalenderbalken über den Tageszellen */
+	--z-overlay: 2; /* Tooltips der Diagramme */
+
+	color-scheme: light;
 
 	font-family:
 		system-ui,
@@ -31,6 +66,27 @@
 
 body {
 	margin: 0;
+}
+
+/* Grosse Überschriften enger gesetzt, Umbrüche ausgeglichen */
+h1,
+h2 {
+	line-height: 1.2;
+	letter-spacing: -0.02em;
+	text-wrap: balance;
+}
+
+/* Mehr Abstand nach oben als nach unten: die Überschrift gehört zum Inhalt darunter */
+h1 {
+	margin-block: var(--space-6) var(--space-4);
+}
+
+h2 {
+	margin-block: var(--space-8) var(--space-3);
+}
+
+h3 {
+	margin-block: var(--space-6) var(--space-2);
 }
 
 a {
@@ -55,30 +111,46 @@ a {
 
 .skip-link {
 	position: absolute;
-	left: 0.5rem;
+	left: var(--space-2);
 	top: -3rem;
-	padding: 0.5rem 1rem;
+	padding: var(--space-2) var(--space-4);
 	background: var(--color-primary);
-	color: #fff;
-	border-radius: var(--radius);
+	color: var(--color-on-accent);
+	border-radius: var(--radius-md);
 }
 
 .skip-link:focus {
-	top: 0.5rem;
+	top: var(--space-2);
 }
 
 /* Knöpfe (auch Links, die wie Knöpfe aussehen) */
 .button {
 	display: inline-block;
-	padding: 0.6rem 1rem;
+	padding: var(--space-2) var(--space-4);
 	border: 2px solid var(--color-primary);
-	border-radius: var(--radius);
+	border-radius: var(--radius-md);
 	background: var(--color-primary);
-	color: #fff;
+	color: var(--color-on-accent);
 	font: inherit;
 	font-weight: 600;
 	text-decoration: none;
 	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.button:hover {
+	background: var(--color-primary-hover);
+	border-color: var(--color-primary-hover);
+}
+
+.button:active {
+	transform: translateY(1px);
+}
+
+.button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
 }
 
 .button.secondary {
@@ -86,29 +158,46 @@ a {
 	color: var(--color-primary);
 }
 
+.button.secondary:hover {
+	background: var(--color-surface);
+	border-color: var(--color-primary);
+}
+
 .button.danger {
 	border-color: var(--color-danger);
 	background: var(--color-danger);
 }
 
+/* Einzelnes Element löschen: rot umrandet, aber nicht so laut wie "Alle Daten löschen" */
+.button.danger-outline {
+	border-color: var(--color-danger);
+	background: transparent;
+	color: var(--color-danger);
+}
+
+.button.danger-outline:hover {
+	background: var(--color-danger-tint);
+	border-color: var(--color-danger);
+}
+
 .button.small {
-	padding: 0.25rem 0.6rem;
-	font-size: 0.9rem;
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-sm);
 }
 
 .actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.5rem;
-	margin: 1rem 0;
+	gap: var(--space-2);
+	margin: var(--space-4) 0;
 }
 
 /* Formulare */
 .field {
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
-	margin-bottom: 1rem;
+	gap: var(--space-1);
+	margin-bottom: var(--space-4);
 }
 
 .field label,
@@ -118,11 +207,12 @@ fieldset legend {
 
 input,
 select {
+	touch-action: manipulation;
 	font: inherit;
-	padding: 0.5rem;
+	padding: var(--space-2);
 	border: 1px solid var(--color-border);
-	border-radius: var(--radius);
-	background: #fff;
+	border-radius: var(--radius-md);
+	background: var(--color-bg);
 	color: var(--color-text);
 	max-width: 100%;
 }
@@ -135,30 +225,64 @@ select[aria-invalid='true'] {
 fieldset {
 	border: none;
 	padding: 0;
-	margin: 0 0 1rem;
+	margin: 0 0 var(--space-4);
 }
 
 .radio-row {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 1rem;
+	gap: var(--space-4);
+}
+
+/* Optionsfelder: das ganze Label ist Trefferfläche, gut 40 px hoch */
+.radio-row label {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding-block: var(--space-2);
+}
+
+/* Umschalter mit einheitlichem Aussehen: Hauptnavigation, Monat/Liste, Kurz-/Langbahn */
+.tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-4);
+}
+
+.tabs a {
+	padding: var(--space-3) 0 calc(var(--space-3) - 2px);
+	border-bottom: 2px solid transparent;
+	color: var(--color-muted);
+	text-decoration: none;
+	touch-action: manipulation;
+}
+
+.tabs a:hover {
+	color: var(--color-text);
+}
+
+.tabs a[aria-current='page'],
+.tabs a[aria-current='true'] {
+	border-bottom-color: var(--color-text);
+	color: var(--color-text);
+	font-weight: 600;
 }
 
 .hint {
 	color: var(--color-muted);
-	font-size: 0.9rem;
+	font-size: var(--text-sm);
 }
 
 .error {
 	color: var(--color-danger);
-	font-size: 0.9rem;
+	font-size: var(--text-sm);
 	font-weight: 600;
 }
 
 .grid-2 {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-	column-gap: 1rem;
+	column-gap: var(--space-4);
 }
 
 /* Tabellen: auf schmalen Bildschirmen seitlich scrollbar statt abgeschnitten */
@@ -174,8 +298,8 @@ table {
 th,
 td {
 	text-align: left;
-	padding: 0.5rem;
-	border-bottom: 1px solid var(--color-border);
+	padding: var(--space-2);
+	border-bottom: 1px solid var(--color-line);
 	vertical-align: top;
 }
 
@@ -187,18 +311,32 @@ th.num {
 
 .card {
 	background: var(--color-surface);
-	border-radius: var(--radius);
-	padding: 0.75rem 1rem;
-	margin-bottom: 0.75rem;
+	border-radius: var(--radius-lg);
+	padding: var(--space-3) var(--space-4);
+	margin-bottom: var(--space-3);
 }
 
 .badge {
 	display: inline-block;
-	padding: 0 0.5rem;
-	border: 1px solid var(--color-primary);
-	border-radius: 999px;
-	font-size: 0.85rem;
+	padding: 0 var(--space-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-full);
+	font-size: var(--text-sm);
+	color: var(--color-muted);
+}
+
+/* Bestzeit ist der beste Moment in der App: gefüllt, nicht nur ein Etikett */
+.badge.pb {
+	border-color: var(--color-primary);
+	background: var(--color-primary);
+	color: var(--color-on-accent);
+	font-weight: 600;
+}
+
+.badge.sb {
+	border-color: var(--color-primary);
 	color: var(--color-primary);
+	font-weight: 600;
 }
 
 .warning {
