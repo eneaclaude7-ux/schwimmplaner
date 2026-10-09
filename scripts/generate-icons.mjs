@@ -1,5 +1,5 @@
 // Erzeugt die App-Icons (PNG) ohne fremde Bibliotheken. Gleiche Bildmarke wie src/lib/assets/favicon.svg:
-// Delfin von der Seite, die Arme tauchen ein, an den Händen spritzt eine Wasserkrone.
+// Delfin von der Seite, die Hände tauchen ein, links und rechts steigt eine Wasserkrone auf.
 // Eigenes Werk, darum keine Lizenzfragen. Aufruf: node scripts/generate-icons.mjs
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -63,7 +63,35 @@ function bezier(p0, p1, p2, p3, steps = 24) {
 }
 
 const SHAPES = [
-	// Wasserlinie
+	// Körperbogen, Arme, Kopf
+	{ line: bezier([8, 45], [13, 30], [25, 19], [38, 24]), half: 3.5, color: LED },
+	{
+		line: [
+			[38, 24],
+			[54, 46]
+		],
+		half: 2.75,
+		color: LED
+	},
+	{ circle: [45, 21, 5.5], color: LED },
+	// Wasserkrone links und rechts der Hände (gefüllte Zacken) und Tropfen
+	{
+		polygon: [
+			...bezier([45.5, 47], [46, 43], [45.2, 40.5], [43.8, 37.8]),
+			...bezier([43.8, 37.8], [47, 39.5], [49.3, 42.5], [50.5, 46.5])
+		],
+		color: WAVE
+	},
+	{
+		polygon: [
+			...bezier([57.5, 46.5], [58.3, 43], [59.8, 40.4], [61.6, 38.8]),
+			...bezier([61.6, 38.8], [60.8, 41.4], [60.6, 43.8], [60.9, 47])
+		],
+		color: WAVE
+	},
+	{ circle: [40, 37.5, 1.6], color: WAVE },
+	{ circle: [60.2, 35.2, 1.4], color: WAVE },
+	// Wasserlinie zuletzt: Sie liegt über den Händen, die damit eintauchen
 	{
 		line: [
 			...bezier([4, 50], [11, 46], [17, 46], [24, 50]),
@@ -72,25 +100,19 @@ const SHAPES = [
 		],
 		half: 2,
 		color: WAVE
-	},
-	// Körperbogen, Arme, Kopf
-	{ line: bezier([8, 45], [13, 30], [25, 19], [38, 24]), half: 3.5, color: LED },
-	{
-		line: [
-			[38, 24],
-			[52, 43]
-		],
-		half: 2.75,
-		color: LED
-	},
-	{ circle: [45, 21, 5.5], color: LED },
-	// Wasserkrone an den Händen und Tropfen
-	{ line: bezier([47.5, 45], [46, 42], [45.5, 39.5], [46.5, 37]), half: 1.2, color: WAVE },
-	{ line: bezier([57, 45], [59, 42.5], [60, 40], [59.5, 37]), half: 1.2, color: WAVE },
-	{ circle: [50, 35.5, 1.5], color: WAVE },
-	{ circle: [56, 34, 1.4], color: WAVE },
-	{ circle: [60, 33, 1.1], color: WAVE }
+	}
 ];
+
+/** Punkt in einem geschlossenen Polygon (Strahlverfahren) */
+function insidePolygon(x, y, polygon) {
+	let inside = false;
+	for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+		const [xi, yi] = polygon[i];
+		const [xj, yj] = polygon[j];
+		if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+	}
+	return inside;
+}
 
 function distanceToLine(x, y, line) {
 	let best = Infinity;
@@ -112,7 +134,9 @@ function colorAt(x, y) {
 	for (const shape of SHAPES) {
 		const hit = shape.circle
 			? Math.hypot(x - shape.circle[0], y - shape.circle[1]) <= shape.circle[2]
-			: distanceToLine(x, y, shape.line) <= shape.half;
+			: shape.polygon
+				? insidePolygon(x, y, shape.polygon)
+				: distanceToLine(x, y, shape.line) <= shape.half;
 		if (hit) color = shape.color;
 	}
 	return color;
@@ -123,7 +147,7 @@ function colorAt(x, y) {
  * die Bildmarke sitzt verkleinert in der Mitte, damit "maskable" Icons beim Zuschneiden nichts verlieren.
  */
 function mark(u, v, size) {
-	const SCALE = 0.84; // Anteil der Bildmarke an der Icon-Breite
+	const SCALE = 0.8; // Anteil der Bildmarke an der Icon-Breite
 	let r = 0;
 	let g = 0;
 	let b = 0;
