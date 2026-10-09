@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import { errorAnnouncement, focusFirstError } from '#lib/forms.ts';
+	import { beforeNavigate } from '$app/navigation';
+	import {
+		DISCARD_QUESTION,
+		errorAnnouncement,
+		focusFirstError,
+		storageErrorText
+	} from '#lib/forms.ts';
 	import { datesInRange, formatDate } from '#lib/dates.ts';
 	import {
 		allowedDistances,
@@ -68,6 +74,18 @@
 	let splitErrors = $state<Record<number, string>>({});
 	const resultHs = $derived(parseTime(form.result) ?? undefined);
 	let saving = $state(false);
+	/** Speichern gescheitert: Meldung beim Knopf, die Eingaben bleiben stehen */
+	let saveError = $state('');
+
+	// Ungespeicherte Eingaben nicht still verlieren, wenn man wegnavigiert
+	const start = untrack(() => JSON.stringify([form, splitInput]));
+	const dirty = $derived(JSON.stringify([form, splitInput]) !== start);
+	let saved = false;
+	beforeNavigate((navigation) => {
+		if (!dirty || saved) return;
+		// Beim Schliessen des Tabs zeigt der Browser selbst eine Rückfrage
+		if (navigation.willUnload || !confirm(DISCARD_QUESTION)) navigation.cancel();
+	});
 	let formEl = $state<HTMLFormElement>();
 	/** Meldung für Screenreader, falls der Fokus schon im fehlerhaften Feld war */
 	let alert = $state('');
@@ -121,7 +139,16 @@
 		splitErrors = {};
 		saving = true;
 		try {
-			onsaved(await saveRace({ ...result.value, splits: splits.splits }, competition.id, race?.id));
+			const id = await saveRace(
+				{ ...result.value, splits: splits.splits },
+				competition.id,
+				race?.id
+			);
+			saved = true;
+			saveError = '';
+			onsaved(id);
+		} catch (error) {
+			saveError = `Speichern fehlgeschlagen: ${storageErrorText(error)} Deine Eingaben sind noch da, versuch es nochmals.`;
 		} finally {
 			saving = false;
 		}
@@ -264,6 +291,8 @@
 			/>
 		{/if}
 	{/if}
+
+	{#if saveError}<p class="error" role="alert">{saveError}</p>{/if}
 
 	<div class="actions">
 		<button class="button" type="submit" disabled={saving}>

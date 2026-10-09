@@ -2,12 +2,21 @@
 	import { liveQuery } from 'dexie';
 	import { tick } from 'svelte';
 	import LenexImport from '#lib/components/LenexImport.svelte';
+	import UndoToast from '#lib/components/UndoToast.svelte';
 	import { parseBackup } from '#lib/backup.ts';
 	import { racesToCsv } from '#lib/csv.ts';
 	import { db } from '#lib/db.ts';
 	import { formatDate, isIsoDate, todayIso } from '#lib/dates.ts';
+	import { storageErrorText } from '#lib/forms.ts';
 	import type { Season } from '#lib/model.ts';
-	import { addSeason, deleteAllData, deleteSeason, exportAll, importAll } from '#lib/repo.ts';
+	import {
+		addSeason,
+		deleteAllData,
+		deleteSeason,
+		exportAll,
+		importAll,
+		restoreSeason
+	} from '#lib/repo.ts';
 	import { seasonForDate } from '#lib/seasons.ts';
 	import { requestPersistentStorage } from '#lib/storage.ts';
 	import { count } from '#lib/text.ts';
@@ -60,18 +69,47 @@
 			return;
 		}
 		seasonError = '';
-		await addSeason(name, seasonStart);
+		try {
+			await addSeason(name, seasonStart);
+		} catch (error) {
+			seasonError = `Speichern fehlgeschlagen: ${storageErrorText(error)}`;
+			return;
+		}
 		notify('seasons', `Saison ${name} angelegt.`);
 		seasonName = '';
 		seasonStart = '';
 	}
 
+	/** Zuletzt gelöschte Saison: 10 Sekunden lang zurückholbar, darum keine Rückfrage vorher */
+	let undoSeason = $state<Season | null>(null);
+
 	async function removeSeason(season: Season) {
-		if (!confirm(`Saison ${season.name} löschen? Läufe und Wettkämpfe bleiben erhalten.`)) return;
-		await deleteSeason(season.id);
-		await notify('seasons', `Saison ${season.name} gelöscht.`);
+		try {
+			await deleteSeason(season.id);
+		} catch (error) {
+			notify('seasons', `Löschen fehlgeschlagen: ${storageErrorText(error)}`);
+			return;
+		}
+		undoSeason = season;
+		await notify(
+			'seasons',
+			`Saison ${season.name} gelöscht. Läufe und Wettkämpfe bleiben erhalten.`
+		);
 		// Der Knopf ist weg: Fokus auf die Überschrift des Abschnitts
 		document.getElementById('saisons')?.focus();
+	}
+
+	async function undoRemoveSeason() {
+		if (!undoSeason) return;
+		// $state verpackt das Objekt in einen Proxy; IndexedDB braucht eine einfache Kopie
+		const season = $state.snapshot(undoSeason);
+		undoSeason = null;
+		try {
+			await restoreSeason(season);
+			notify('seasons', `Saison ${season.name} wiederhergestellt.`);
+		} catch (error) {
+			notify('seasons', `Wiederherstellen fehlgeschlagen: ${storageErrorText(error)}`);
+		}
 	}
 
 	// Export: Datei im Browser erzeugen, nichts geht an einen Server
@@ -85,19 +123,27 @@
 	}
 
 	async function download() {
-		const backup = await exportAll();
-		save(JSON.stringify(backup, null, 2), 'application/json', `schwimmplaner-${todayIso()}.json`);
-		notify('backup', 'Backup heruntergeladen.');
+		try {
+			const backup = await exportAll();
+			save(JSON.stringify(backup, null, 2), 'application/json', `schwimmplaner-${todayIso()}.json`);
+			notify('backup', 'Backup heruntergeladen.');
+		} catch (error) {
+			notify('backup', `Backup fehlgeschlagen: ${storageErrorText(error)}`);
+		}
 	}
 
 	async function downloadCsv() {
-		const { races, competitions, seasons } = await exportAll();
-		save(
-			racesToCsv(races, competitions, seasons),
-			'text/csv;charset=utf-8',
-			`schwimmplaner-laeufe-${todayIso()}.csv`
-		);
-		notify('backup', 'Läufe als CSV heruntergeladen.');
+		try {
+			const { races, competitions, seasons } = await exportAll();
+			save(
+				racesToCsv(races, competitions, seasons),
+				'text/csv;charset=utf-8',
+				`schwimmplaner-laeufe-${todayIso()}.csv`
+			);
+			notify('backup', 'Läufe als CSV heruntergeladen.');
+		} catch (error) {
+			notify('backup', `Export fehlgeschlagen: ${storageErrorText(error)}`);
+		}
 	}
 
 	let fileInput = $state<HTMLInputElement>();
@@ -124,18 +170,29 @@
 				'Alle Daten auf diesem Gerät werden dabei ersetzt.'
 		);
 		if (!ok) return;
-		await importAll(result.backup);
+		try {
+			await importAll(result.backup);
+		} catch (error) {
+			// importAll ist eine Transaktion: Bei einem Fehler bleiben die alten Daten unverändert
+			restoreError = `Einlesen fehlgeschlagen, deine bisherigen Daten sind unverändert: ${storageErrorText(error)}`;
+			return;
+		}
 		if (fileInput) fileInput.value = '';
 		notify('restore', 'Backup eingelesen.');
 	}
 
+	/** Alles löschen ist endgültig: erst nach einem bewussten Häkchen, nicht nach einem Fehltipp */
+	let wipeConfirmed = $state(false);
+
 	async function wipe() {
-		const ok = confirm(
-			'Wirklich alle Daten auf diesem Gerät löschen? Das kann nicht rückgängig gemacht werden. ' +
-				'Lade vorher ein Backup herunter, wenn du die Daten behalten willst.'
-		);
-		if (!ok) return;
-		await deleteAllData();
+		if (!wipeConfirmed) return;
+		try {
+			await deleteAllData();
+		} catch (error) {
+			notify('wipe', `Löschen fehlgeschlagen: ${storageErrorText(error)}`);
+			return;
+		}
+		wipeConfirmed = false;
 		notify('wipe', 'Alle Daten wurden gelöscht.');
 	}
 
@@ -150,6 +207,13 @@
 </svelte:head>
 
 <h1>Daten</h1>
+
+<nav class="toc" aria-label="Auf dieser Seite">
+	<a href="#backup">Sichern</a>
+	<a href="#saisons">Saisons</a>
+	<a href="#lenex">Lenex</a>
+	<a href="#loeschen">Alles löschen</a>
+</nav>
 
 <!-- Zuerst sichern: Dieses Gerät hat die einzige Kopie -->
 <section aria-labelledby="backup">
@@ -273,13 +337,63 @@
 <section aria-labelledby="loeschen">
 	<h2 id="loeschen">Alle Daten löschen</h2>
 	<p>
-		Löscht alle Wettkämpfe, Läufe und Saisons auf diesem Gerät. Auf keinem Server liegt eine Kopie.
+		Löscht alle Wettkämpfe, Läufe und Saisons auf diesem Gerät
+		{#if $counts}({count($counts.competitions, 'Wettkampf', 'Wettkämpfe')}, {count(
+				$counts.races,
+				'Lauf',
+				'Läufe'
+			)}){/if}. Auf keinem Server liegt eine Kopie, das lässt sich nicht rückgängig machen.
 	</p>
-	<button class="button danger-outline" type="button" onclick={wipe}>Alle Daten löschen</button>
+	<label class="ack">
+		<input type="checkbox" bind:checked={wipeConfirmed} />
+		Ich habe ein Backup heruntergeladen oder will die Daten wirklich verlieren.
+	</label>
+	<button
+		class="button danger-outline"
+		type="button"
+		onclick={wipe}
+		disabled={!wipeConfirmed}
+		aria-describedby="wipe-why">Alle Daten endgültig löschen</button
+	>
+	{#if !wipeConfirmed}
+		<p id="wipe-why" class="hint">Zuerst das Häkchen oben setzen.</p>
+	{/if}
 	<p class="status" aria-live="polite">{messages.wipe}</p>
 </section>
 
+{#if undoSeason}
+	{#key undoSeason.id}
+		<UndoToast
+			message="Saison {undoSeason.name} gelöscht."
+			onundo={undoRemoveSeason}
+			ondismiss={() => (undoSeason = null)}
+		/>
+	{/key}
+{/if}
+
 <style>
+	.toc {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1) var(--space-4);
+	}
+
+	.toc a {
+		padding-block: var(--space-2);
+	}
+
+	.ack {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-2);
+		margin-bottom: var(--space-3);
+		padding-block: var(--space-2);
+	}
+
+	.ack input {
+		margin-top: 0.3em;
+	}
+
 	section {
 		margin-top: var(--space-8);
 	}

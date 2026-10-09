@@ -16,3 +16,15 @@ export function errorAnnouncement(messages: string[]): string {
 	if (messages.length === 1) return `Bitte korrigieren: ${messages[0]}`;
 	return `${messages.length} Felder sind nicht korrekt. Erstes: ${messages[0]}`;
 }
+
+/** Lesbarer Grund, wenn die lokale Datenbank einen Fehler meldet */
+export function storageErrorText(error: unknown): string {
+	const name = error instanceof Error ? error.name : '';
+	if (name === 'QuotaExceededError') return 'Der Speicher auf diesem Gerät ist voll.';
+	if (name === 'InvalidStateError' || name === 'SecurityError') {
+		return 'Der Browser-Speicher ist nicht verfügbar (privater Modus oder blockierte Website-Daten?).';
+	}
+	return error instanceof Error && error.message ? error.message : 'Unbekannter Fehler.';
+}
+
+export const DISCARD_QUESTION = 'Du hast Eingaben, die noch nicht gespeichert sind. Verwerfen?';

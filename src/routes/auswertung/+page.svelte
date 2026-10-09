@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { liveQuery } from 'dexie';
+	import Loading from '#lib/components/Loading.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -103,7 +104,7 @@
 <h1>Auswertung</h1>
 
 {#if $data === undefined}
-	<p>Lade …</p>
+	<Loading />
 {:else if histories.length === 0}
 	<p>
 		Noch keine geschwommenen Zeiten. Trage bei einem <a href={resolve('/')}>Wettkampf</a> ein Resultat

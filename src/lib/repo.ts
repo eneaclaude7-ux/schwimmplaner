@@ -2,7 +2,7 @@
 import { createBackup, type Backup } from './backup';
 import { db } from './db';
 import type { ImportPlan } from './lenex';
-import type { Id, IsoDate, Split } from './model';
+import type { Id, IsoDate, Race, Season, Split } from './model';
 import type { CompetitionValue, RaceValue } from './validation';
 
 function now(): string {
@@ -80,6 +80,11 @@ export async function deleteRace(id: Id): Promise<void> {
 	await db.races.delete(id);
 }
 
+/** Gelöschten Lauf zurückholen (Rückgängig), unverändert mit derselben ID */
+export async function restoreRace(race: Race): Promise<void> {
+	await db.races.put(race);
+}
+
 /** Speichert einen Lenex-Import (siehe planImport). Alles oder nichts (eine Transaktion). */
 export async function saveImport(plan: ImportPlan): Promise<Id> {
 	return db.transaction('rw', db.athletes, db.competitions, db.races, async () => {
@@ -124,6 +129,11 @@ export async function addSeason(name: string, startDate: IsoDate): Promise<Id> {
 
 export async function deleteSeason(id: Id): Promise<void> {
 	await db.seasons.delete(id);
+}
+
+/** Gelöschte Saison zurückholen (Rückgängig) */
+export async function restoreSeason(season: Season): Promise<void> {
+	await db.seasons.put(season);
 }
 
 export async function exportAll(): Promise<Backup> {

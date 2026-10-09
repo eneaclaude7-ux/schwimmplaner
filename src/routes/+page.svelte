@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { liveQuery } from 'dexie';
+	import Loading from '#lib/components/Loading.svelte';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import {
@@ -149,7 +150,7 @@
 {/snippet}
 
 {#if $competitions === undefined}
-	<p>Lade …</p>
+	<Loading />
 {:else if view === 'monat'}
 	<div class="month-head">
 		<h2 aria-live="polite">{monthLabel(month)}</h2>

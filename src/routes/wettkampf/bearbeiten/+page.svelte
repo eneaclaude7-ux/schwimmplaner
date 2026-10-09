@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { liveQuery } from 'dexie';
+	import Loading from '#lib/components/Loading.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -32,7 +33,7 @@
 {#if !id}
 	<CompetitionForm startDate={date} onsaved={(newId) => goto(resolve(`/wettkampf?id=${newId}`))} />
 {:else if $competition === undefined}
-	<p>Lade …</p>
+	<Loading />
 {:else if $competition === null}
 	<p>Diesen Wettkampf gibt es nicht (mehr).</p>
 {:else}

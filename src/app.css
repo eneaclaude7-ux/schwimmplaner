@@ -66,6 +66,8 @@
 
 body {
 	margin: 0;
+	/* Lange Namen ohne Leerzeichen brechen um, statt die Seite zu verbreitern */
+	overflow-wrap: break-word;
 }
 
 /* Grosse Überschriften enger gesetzt, Umbrüche ausgeglichen */
@@ -74,6 +76,8 @@ h2 {
 	line-height: 1.2;
 	letter-spacing: -0.02em;
 	text-wrap: balance;
+	/* Lange deutsche Wörter nach Silben trennen ("Nachwuchs-schwimm-meeting") */
+	hyphens: auto;
 }
 
 /* Mehr Abstand nach oben als nach unten: die Überschrift gehört zum Inhalt darunter */

@@ -4,12 +4,15 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import Loading from '#lib/components/Loading.svelte';
 	import RaceForm from '#lib/components/RaceForm.svelte';
 	import SplitTable from '#lib/components/SplitTable.svelte';
+	import UndoToast from '#lib/components/UndoToast.svelte';
 	import { db } from '#lib/db.ts';
+	import { storageErrorText as errorText } from '#lib/forms.ts';
 	import { daysBetween, formatDate, formatDateRange, relativeDays, todayIso } from '#lib/dates.ts';
 	import { COURSE_LABEL, raceLabel, STATUS_LABEL, type Id, type Race } from '#lib/model.ts';
-	import { deleteCompetition, deleteRace } from '#lib/repo.ts';
+	import { deleteCompetition, deleteRace, restoreRace } from '#lib/repo.ts';
 	import { bestMarks, buildHistories } from '#lib/stats.ts';
 	import { deviationText, formatTime } from '#lib/time.ts';
 
@@ -25,6 +28,14 @@
 			)
 		)
 	);
+
+	// Vorheriger und nächster Wettkampf, damit man nicht jedes Mal über den Kalender muss
+	const all = liveQuery(() => db.competitions.orderBy('startDate').toArray());
+	const neighbours = $derived.by(() => {
+		const list = $all ?? [];
+		const i = list.findIndex((c) => c.id === id);
+		return i === -1 ? {} : { prev: list[i - 1], next: list[i + 1] };
+	});
 
 	// Bestzeiten hängen an allen Läufen, nicht nur an diesem Wettkampf
 	const marks = liveQuery(async () =>
@@ -67,12 +78,22 @@
 
 	const multiDay = $derived(!!$competition?.endDate);
 
+	/** Fehlermeldung, wenn Löschen oder Wiederherstellen scheitert (z. B. Speicher voll) */
+	let actionError = $state('');
+
 	async function removeCompetition() {
+		const name = $competition?.name ?? 'Diesen Wettkampf';
 		const count = $races?.length ?? 0;
 		const extra = count > 0 ? ` und ${count} ${count === 1 ? 'Lauf' : 'Läufe'}` : '';
-		if (!confirm(`Diesen Wettkampf${extra} endgültig löschen?`)) return;
-		await deleteCompetition(id);
-		await goto(resolve('/'));
+		// Ein ganzer Wettkampf mit Läufen: endgültig, darum hier eine Rückfrage statt Rückgängig
+		if (!confirm(`«${name}»${extra} endgültig löschen? Das lässt sich nicht rückgängig machen.`))
+			return;
+		try {
+			await deleteCompetition(id);
+			await goto(resolve('/'));
+		} catch (error) {
+			actionError = `Löschen fehlgeschlagen: ${errorText(error)}`;
+		}
 	}
 
 	/** Formular in der Karte öffnen und Fokus dorthin setzen, sonst merkt man auf dem Handy nichts */
@@ -96,16 +117,42 @@
 		saved?.focus();
 	}
 
+	/** Zuletzt gelöschter Lauf: Er lässt sich 10 Sekunden lang zurückholen */
+	let undo = $state<{ race: Race; name: string } | null>(null);
+
+	/** Löschen ohne Rückfrage, dafür mit "Rückgängig": Ein Lauf ist schnell wieder da */
 	async function removeRace(race: Race) {
-		if (!confirm(`${raceName(race)} endgültig löschen?`)) return;
 		// Fokus danach auf den nächsten Lauf, sonst auf die Überschrift "Läufe"
 		const list = $races ?? [];
 		const neighbour = list[list.indexOf(race) + 1] ?? list[list.indexOf(race) - 1];
 		const name = raceName(race);
-		await deleteRace(race.id);
-		announce(`${name} gelöscht.`);
+		try {
+			await deleteRace(race.id);
+		} catch (error) {
+			actionError = `Löschen fehlgeschlagen: ${errorText(error)}`;
+			return;
+		}
+		actionError = '';
+		undo = { race, name };
+		announce(`${name} gelöscht. Rückgängig ist unten 10 Sekunden lang möglich.`);
 		await tick();
 		document.getElementById(neighbour ? `race-${neighbour.id}` : 'races-heading')?.focus();
+	}
+
+	async function undoRemove() {
+		if (!undo) return;
+		// $state verpackt das Objekt in einen Proxy; IndexedDB braucht eine einfache Kopie
+		const { race, name } = $state.snapshot(undo);
+		undo = null;
+		try {
+			await restoreRace(race);
+		} catch (error) {
+			actionError = `Wiederherstellen fehlgeschlagen: ${errorText(error)}`;
+			return;
+		}
+		announce(`${name} wiederhergestellt.`);
+		await tick();
+		document.getElementById(`race-${race.id}`)?.focus();
 	}
 
 	function resultText(race: Race): string {
@@ -151,13 +198,19 @@
 </svelte:head>
 
 {#if $competition === undefined}
-	<p>Lade …</p>
+	<Loading />
 {:else if $competition === null}
 	<h1>Nicht gefunden</h1>
 	<p>Diesen Wettkampf gibt es nicht (mehr). <a href={resolve('/')}>Zum Kalender</a></p>
 {:else}
 	{@const c = $competition}
+	<!-- Zurück in den Monat dieses Wettkampfs, nicht auf heute -->
+	<a class="back" href={resolve(`/?monat=${c.startDate.slice(0, 7)}`)}>← Kalender</a>
 	<h1>{c.name}</h1>
+
+	{#if actionError}
+		<p class="error" role="alert">{actionError}</p>
+	{/if}
 
 	<dl class="facts">
 		<dt>Datum</dt>
@@ -261,10 +314,13 @@
 			{/each}
 		</ul>
 	{:else if $races}
-		<p>Noch keine Läufe.</p>
+		<p>
+			Noch keine Läufe. Trag <a href="#lauf-hinzufuegen">unten</a> ein, welche Strecken du schwimmst und
+			mit welcher Zielzeit; die Endzeit kommt nach dem Rennen dazu.
+		</p>
 	{/if}
 
-	<h2>Lauf hinzufügen</h2>
+	<h2 id="lauf-hinzufuegen">Lauf hinzufügen</h2>
 	<!-- Nach dem Speichern neu aufbauen, damit das Formular wieder leer ist -->
 	{#key $races?.length}
 		<RaceForm
@@ -279,9 +335,73 @@
 			}}
 		/>
 	{/key}
+
+	{#if neighbours.prev || neighbours.next}
+		<nav class="pager" aria-label="Andere Wettkämpfe">
+			{#if neighbours.prev}
+				<a href={resolve(`/wettkampf?id=${neighbours.prev.id}`)}>
+					<span class="muted">← Vorheriger</span>
+					{neighbours.prev.name}
+				</a>
+			{/if}
+			{#if neighbours.next}
+				<a class="next" href={resolve(`/wettkampf?id=${neighbours.next.id}`)}>
+					<span class="muted">Nächster →</span>
+					{neighbours.next.name}
+				</a>
+			{/if}
+		</nav>
+	{/if}
+{/if}
+
+{#if undo}
+	{#key undo.race.id}
+		<UndoToast
+			message="{undo.name} gelöscht."
+			onundo={undoRemove}
+			ondismiss={() => (undo = null)}
+		/>
+	{/key}
 {/if}
 
 <style>
+	.back {
+		display: inline-block;
+		margin-top: var(--space-4);
+		padding-block: var(--space-2);
+	}
+
+	.back + h1 {
+		margin-top: var(--space-1);
+	}
+
+	/* Vorheriger und nächster Wettkampf: grosse Trefferflächen, links und rechts */
+	.pager {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-3);
+		margin-top: var(--space-8);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--color-line);
+	}
+
+	.pager a {
+		display: flex;
+		flex-direction: column;
+		padding: var(--space-2) 0;
+		text-decoration: none;
+		overflow-wrap: anywhere;
+	}
+
+	.pager .next {
+		grid-column: 2;
+		text-align: right;
+	}
+
+	.pager .muted {
+		font-size: var(--text-sm);
+	}
+
 	.facts {
 		display: grid;
 		grid-template-columns: max-content 1fr;

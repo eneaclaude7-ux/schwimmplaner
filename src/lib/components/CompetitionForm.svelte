@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { errorAnnouncement, focusFirstError } from '#lib/forms.ts';
+	import { beforeNavigate } from '$app/navigation';
+	import {
+		DISCARD_QUESTION,
+		errorAnnouncement,
+		focusFirstError,
+		storageErrorText
+	} from '#lib/forms.ts';
 	import type { Competition, Id, IsoDate } from '#lib/model.ts';
 	import { saveCompetition } from '#lib/repo.ts';
 	import { validateCompetition, type CompetitionInput } from '#lib/validation.ts';
@@ -27,6 +33,17 @@
 	});
 	let errors = $state<Partial<Record<keyof CompetitionInput, string>>>({});
 	let saving = $state(false);
+	/** Speichern gescheitert: Meldung beim Knopf, die Eingaben bleiben stehen */
+	let saveError = $state('');
+
+	// Ungespeicherte Eingaben nicht still verlieren, wenn man wegnavigiert
+	const start = untrack(() => JSON.stringify(form));
+	const dirty = $derived(JSON.stringify(form) !== start);
+	let saved = false;
+	beforeNavigate((navigation) => {
+		if (!dirty || saved) return;
+		if (navigation.willUnload || !confirm(DISCARD_QUESTION)) navigation.cancel();
+	});
 	let formEl = $state<HTMLFormElement>();
 	/** Meldung für Screenreader, falls der Fokus schon im fehlerhaften Feld war */
 	let alert = $state('');
@@ -55,7 +72,12 @@
 		errors = {};
 		saving = true;
 		try {
-			onsaved(await saveCompetition(result.value, competition?.id));
+			const id = await saveCompetition(result.value, competition?.id);
+			saved = true;
+			saveError = '';
+			onsaved(id);
+		} catch (error) {
+			saveError = `Speichern fehlgeschlagen: ${storageErrorText(error)} Deine Eingaben sind noch da, versuch es nochmals.`;
 		} finally {
 			saving = false;
 		}
@@ -155,6 +177,8 @@
 		</div>
 		{#if errors.course}<p id="competition-course-error" class="error">{errors.course}</p>{/if}
 	</fieldset>
+
+	{#if saveError}<p class="error" role="alert">{saveError}</p>{/if}
 
 	<div class="actions">
 		<button class="button" type="submit" disabled={saving}>Speichern</button>
