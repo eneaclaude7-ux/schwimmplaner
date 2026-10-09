@@ -125,3 +125,39 @@ export function formatPercent(diff: Hs, base: Hs): string {
 	const sign = diff < 0 && percent > 0 ? '−' : diff > 0 && percent > 0 ? '+' : '±';
 	return `${sign}${percent.toFixed(1)} %`;
 }
+
+/** Eine Zeile der Resultat-Tafel auf der Übersicht */
+export interface SeasonRow {
+	history: EventHistory;
+	/** Saisonbestzeit auf dieser Strecke */
+	best: Entry;
+	/** Verbesserung gegenüber der Bestzeit vor Saisonstart; undefined = erste Zeit überhaupt */
+	diff?: Hs;
+}
+
+/** Saisonbestzeiten einer Bahnlänge, Strecken ohne Zeit in der Saison fehlen */
+export function seasonOverview(
+	histories: EventHistory[],
+	course: Course,
+	season: Season
+): SeasonRow[] {
+	return histories
+		.filter((h) => h.course === course)
+		.flatMap((history) => {
+			const best = seasonBest(history, season);
+			if (!best) return [];
+			const before = bestBeforeDate(history, season.startDate);
+			return [{ history, best, diff: before === undefined ? undefined : best.time - before }];
+		});
+}
+
+/** Die letzten geschwommenen Läufe über alle Strecken, neueste zuerst */
+export function latestEntries(histories: EventHistory[], count: number): Entry[] {
+	return histories
+		.flatMap((h) => h.entries)
+		.sort(
+			(a, b) =>
+				b.race.date.localeCompare(a.race.date) || b.race.createdAt.localeCompare(a.race.createdAt)
+		)
+		.slice(0, count);
+}

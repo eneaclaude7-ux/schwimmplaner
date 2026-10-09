@@ -62,3 +62,11 @@ export function relativeDays(days: number): string {
 	if (days === 1) return 'morgen';
 	return `in ${days} Tagen`;
 }
+
+const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
+/** '2026-10-17' -> 'Sa 17.10.' (kurz, für Kacheln und Listen) */
+export function formatShortDate(iso: IsoDate): string {
+	const [, m, d] = iso.split('-');
+	return `${WEEKDAYS[weekday(iso)]} ${d}.${m}.`;
+}

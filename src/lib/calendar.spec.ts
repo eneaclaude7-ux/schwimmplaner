@@ -6,6 +6,7 @@ import {
 	layoutWeek,
 	monthLabel,
 	monthWeeks,
+	nextCompetition,
 	nextDeadline
 } from './calendar';
 import { addDays, weekday } from './dates';
@@ -127,5 +128,23 @@ describe('nextDeadline', () => {
 	it('gibt undefined, wenn kein Meldeschluss mehr offen ist', () => {
 		expect(nextDeadline(list, '2026-11-03')).toBeUndefined();
 		expect(nextDeadline([], '2026-10-09')).toBeUndefined();
+	});
+});
+
+describe('nextCompetition', () => {
+	const list = [
+		competition('Vorbei', '2026-10-01'),
+		competition('Läuft', '2026-10-08', '2026-10-10'),
+		competition('Später', '2026-11-20'),
+		competition('Bald', '2026-10-17')
+	];
+
+	it('nimmt den nächsten Wettkampf, auch einen, der gerade läuft', () => {
+		expect(nextCompetition(list, '2026-10-09')?.name).toBe('Läuft');
+		expect(nextCompetition(list, '2026-10-11')?.name).toBe('Bald');
+	});
+
+	it('gibt undefined, wenn keiner mehr kommt', () => {
+		expect(nextCompetition(list, '2026-12-01')).toBeUndefined();
 	});
 });

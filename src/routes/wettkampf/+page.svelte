@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import Icon from '#lib/components/Icon.svelte';
 	import Loading from '#lib/components/Loading.svelte';
 	import RaceForm from '#lib/components/RaceForm.svelte';
 	import SplitTable from '#lib/components/SplitTable.svelte';
@@ -90,7 +91,7 @@
 			return;
 		try {
 			await deleteCompetition(id);
-			await goto(resolve('/'));
+			await goto(resolve('/kalender'));
 		} catch (error) {
 			actionError = `Löschen fehlgeschlagen: ${errorText(error)}`;
 		}
@@ -201,11 +202,13 @@
 	<Loading />
 {:else if $competition === null}
 	<h1>Nicht gefunden</h1>
-	<p>Diesen Wettkampf gibt es nicht (mehr). <a href={resolve('/')}>Zum Kalender</a></p>
+	<p>Diesen Wettkampf gibt es nicht (mehr). <a href={resolve('/kalender')}>Zum Kalender</a></p>
 {:else}
 	{@const c = $competition}
 	<!-- Zurück in den Monat dieses Wettkampfs, nicht auf heute -->
-	<a class="back" href={resolve(`/?monat=${c.startDate.slice(0, 7)}`)}>← Kalender</a>
+	<a class="back" href={resolve(`/kalender?monat=${c.startDate.slice(0, 7)}`)}
+		><Icon name="arrow-left" size={18} /> Kalender</a
+	>
 	<h1>{c.name}</h1>
 
 	{#if actionError}
@@ -350,13 +353,13 @@
 		<nav class="pager" aria-label="Andere Wettkämpfe">
 			{#if neighbours.prev}
 				<a href={resolve(`/wettkampf?id=${neighbours.prev.id}`)}>
-					<span class="muted">← Vorheriger</span>
+					<span class="muted"><Icon name="chevron-left" size={16} /> Vorheriger</span>
 					{neighbours.prev.name}
 				</a>
 			{/if}
 			{#if neighbours.next}
 				<a class="next" href={resolve(`/wettkampf?id=${neighbours.next.id}`)}>
-					<span class="muted">Nächster →</span>
+					<span class="muted">Nächster <Icon name="chevron-right" size={16} /></span>
 					{neighbours.next.name}
 				</a>
 			{/if}
@@ -376,7 +379,9 @@
 
 <style>
 	.back {
-		display: inline-block;
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
 		margin-top: var(--space-4);
 		padding-block: var(--space-2);
 	}
@@ -409,7 +414,14 @@
 	}
 
 	.pager .muted {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
 		font-size: var(--text-sm);
+	}
+
+	.pager .next .muted {
+		justify-content: flex-end;
 	}
 
 	.facts {

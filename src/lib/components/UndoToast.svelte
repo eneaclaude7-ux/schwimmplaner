@@ -50,7 +50,8 @@
 	.toast {
 		position: fixed;
 		inset-inline: 0;
-		bottom: var(--space-4);
+		/* Über der Navigation unten (auf dem Handy), sonst am unteren Rand */
+		bottom: calc(var(--bottom-nav) + var(--space-4));
 		z-index: var(--z-overlay);
 		box-sizing: border-box;
 		width: min(46rem, calc(100% - 2 * var(--space-4)));

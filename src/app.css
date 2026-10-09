@@ -58,6 +58,7 @@
 	--text-sm: 0.875rem; /* 14 px, Hinweise, Tooltips */
 	--text-base: 1rem;
 	--text-lg: 1.125rem;
+	--text-xl: 1.25rem; /* Leuchtziffern auf den Tafeln */
 
 	/* Radien nach Element: klein für Balken, mittel für Bedienelemente, gross für Flächen */
 	--radius-sm: 4px; /* Kalenderbalken, Farbmuster */
@@ -71,6 +72,10 @@
 	/* Ebenen */
 	--z-raised: 1; /* Kalenderbalken über den Tageszellen */
 	--z-overlay: 2; /* Tooltips der Diagramme */
+	--z-nav: 3; /* Navigation unten auf dem Handy */
+
+	/* Höhe der Navigation unten; 0 auf grossen Bildschirmen (dort ist sie oben) */
+	--bottom-nav: 0px;
 
 	color-scheme: light;
 
@@ -78,6 +83,13 @@
 	line-height: 1.5;
 	color: var(--color-text);
 	background: var(--color-bg);
+}
+
+/* Auf dem Handy liegt die Navigation unten: Platz dafür freihalten */
+@media (max-width: 40rem) {
+	:root {
+		--bottom-nav: 64px;
+	}
 }
 
 body {

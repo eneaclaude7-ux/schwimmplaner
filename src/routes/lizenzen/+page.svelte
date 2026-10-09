@@ -15,9 +15,9 @@
 </p>
 <p>
 	Schriften: Barlow Semi Condensed für Überschriften und Zeiten (wird mit der App ausgeliefert,
-	nicht von einem fremden Server geladen) und die Systemschrift deines Geräts. Logo und Icons:
-	selbst erstellt. Der Code des Schwimmplaners selbst steht unter keiner freien Lizenz, alle Rechte
-	bleiben vorbehalten.
+	nicht von einem fremden Server geladen) und die Systemschrift deines Geräts. Logo und App-Icons:
+	selbst erstellt. Symbole in der Navigation: Tabler Icons, ebenfalls mitgeliefert. Der Code des
+	Schwimmplaners selbst steht unter keiner freien Lizenz, alle Rechte bleiben vorbehalten.
 </p>
 
 <ul class="plain">

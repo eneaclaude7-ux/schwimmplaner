@@ -1,619 +1,554 @@
 <script lang="ts">
+	// Übersicht: das Wichtigste auf einen Blick, wie die Resultat-Tafel in der Halle.
 	import { liveQuery } from 'dexie';
-	import Loading from '#lib/components/Loading.svelte';
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
-	import {
-		addMonths,
-		calendarItems,
-		isMonth,
-		layoutWeek,
-		monthLabel,
-		monthOf,
-		monthWeeks,
-		nextDeadline,
-		type CalendarItem
-	} from '#lib/calendar.ts';
+	import Icon from '#lib/components/Icon.svelte';
+	import Loading from '#lib/components/Loading.svelte';
+	import { monthWeeks, monthOf, nextCompetition, nextDeadline } from '#lib/calendar.ts';
 	import { db } from '#lib/db.ts';
-	import { daysBetween, formatDate, formatDateRange, relativeDays, todayIso } from '#lib/dates.ts';
-	import { COURSE_LABEL, type Competition } from '#lib/model.ts';
+	import { daysBetween, formatDate, formatShortDate, relativeDays, todayIso } from '#lib/dates.ts';
+	import { COURSE_LABEL, raceLabel, type Course } from '#lib/model.ts';
+	import { seasonForDate } from '#lib/seasons.ts';
+	import { bestMarks, buildHistories, latestEntries, seasonOverview } from '#lib/stats.ts';
+	import { formatDiff, formatTime } from '#lib/time.ts';
 
-	// liveQuery aktualisiert die Ansicht automatisch, sobald sich die Datenbank ändert
-	const competitions = liveQuery(() => db.competitions.orderBy('startDate').toArray());
+	const data = liveQuery(async () => ({
+		competitions: await db.competitions.orderBy('startDate').toArray(),
+		races: await db.races.toArray(),
+		seasons: await db.seasons.toArray()
+	}));
 	const today = todayIso();
 
-	// Ansicht und Monat stehen in der Adresse, damit "Zurück" am selben Ort landet
-	const view = $derived(page.url.searchParams.get('ansicht') === 'liste' ? 'liste' : 'monat');
-	const month = $derived.by(() => {
-		const param = page.url.searchParams.get('monat') ?? '';
-		return isMonth(param) ? param : monthOf(today);
-	});
+	const histories = $derived(
+		$data ? buildHistories($data.races, $data.competitions, $data.seasons) : []
+	);
+	const marks = $derived(bestMarks(histories));
+	const season = $derived($data ? seasonForDate($data.seasons, today) : undefined);
+	const latest = $derived(latestEntries(histories, 3));
 
-	function href(next: { monat?: string; ansicht?: 'monat' | 'liste' }) {
-		const params = new URLSearchParams();
-		const m = next.monat ?? month;
-		if ((next.ansicht ?? view) === 'liste') params.set('ansicht', 'liste');
-		else if (m !== monthOf(today)) params.set('monat', m);
-		const query = params.toString();
-		return query ? resolve(`/?${query}`) : resolve('/');
+	// Kurz- und Langbahn nie gemischt; ohne Wahl die Bahn des letzten Rennens
+	let chosen = $state<Course | null>(null);
+	const course = $derived<Course>(chosen ?? latest[0]?.competition.course ?? 'SCM');
+	const rows = $derived(season ? seasonOverview(histories, course, season) : []);
+
+	const next = $derived($data ? nextCompetition($data.competitions, today) : undefined);
+	const plannedCount = $derived(
+		next
+			? ($data?.races ?? []).filter((r) => r.competitionId === next.id && r.status === 'planned')
+					.length
+			: 0
+	);
+	const deadlineFor = $derived($data ? nextDeadline($data.competitions, today) : undefined);
+	const deadlineDays = $derived(
+		deadlineFor?.entryDeadline ? daysBetween(today, deadlineFor.entryDeadline) : undefined
+	);
+
+	// Diese Woche: die Woche von heute aus dem Monatsraster
+	const week = $derived(monthWeeks(monthOf(today)).find((days) => days.includes(today)) ?? []);
+	function meetsOn(day: string) {
+		return ($data?.competitions ?? []).filter(
+			(c) => c.startDate <= day && (c.endDate ?? c.startDate) >= day
+		);
 	}
 
-	// Monatsansicht
-	const items = $derived(calendarItems($competitions ?? []));
-	const weeks = $derived(
-		monthWeeks(month).map((days) => {
-			const placed = layoutWeek(days, items);
-			return { days, placed, lanes: Math.max(0, ...placed.map((p) => p.lane + 1)) };
-		})
-	);
-	/** Wettkämpfe, die im Monat stattfinden oder deren Meldeschluss im Monat liegt */
-	const inMonth = $derived(
-		($competitions ?? []).filter(
-			(c) =>
-				(monthOf(c.startDate) <= month && monthOf(c.endDate ?? c.startDate) >= month) ||
-				(c.entryDeadline && monthOf(c.entryDeadline) === month)
-		)
-	);
-
-	// Listenansicht
-	const upcoming = $derived(
-		($competitions ?? []).filter((c) => (c.endDate ?? c.startDate) >= today)
-	);
-	const past = $derived(
-		($competitions ?? []).filter((c) => (c.endDate ?? c.startDate) < today).reverse()
-	);
-
-	/** Meldeschluss nur anzeigen, solange er nicht vorbei ist; Warnung ab 7 Tagen */
-	function deadline(c: Competition) {
-		if (!c.entryDeadline) return null;
-		const days = daysBetween(today, c.entryDeadline);
-		return { days, soon: days >= 0 && days <= 7 };
-	}
-
-	function chipLabel(item: CalendarItem): string {
-		const c = item.competition;
-		return item.kind === 'deadline'
-			? `Meldeschluss ${c.name}, ${formatDate(item.start)}`
-			: `${c.name}, ${formatDateRange(c.startDate, c.endDate)}, ${COURSE_LABEL[c.course]}`;
-	}
-
-	/** Der nächste offene Meldeschluss, egal in welchem Monat: das Erste, was man sehen soll */
-	const next = $derived(nextDeadline($competitions ?? [], today));
-	const nextInfo = $derived(next?.entryDeadline ? deadline(next) : null);
-
-	/** Der nächste kommende Wettkampf wird in der Liste hervorgehoben */
-	const nextUpId = $derived(upcoming[0]?.id);
-
+	const isEmpty = $derived($data && $data.competitions.length === 0 && $data.races.length === 0);
 	const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 </script>
 
 <svelte:head>
-	<title>Kalender – Schwimmplaner</title>
+	<title>Übersicht – Schwimmplaner</title>
 </svelte:head>
 
-<!-- Der Seitentitel steht schon in der Navigation; sichtbar ist zuerst der nächste Meldeschluss -->
-<h1 class="visually-hidden">Wettkampfkalender</h1>
+<h1 class="visually-hidden">Übersicht</h1>
 
-{#if next && nextInfo}
-	<a
-		class="next-deadline board"
-		class:soon={nextInfo.soon}
-		href={resolve(`/wettkampf?id=${next.id}`)}
-	>
-		<span class="label board-label">Nächster Meldeschluss</span>
-		<span class="what"><strong>{next.name}</strong></span>
-		<span class="when led">{formatDate(next.entryDeadline!)} · {relativeDays(nextInfo.days)}</span>
-	</a>
-{/if}
-
-<div class="toolbar">
-	<nav class="tabs" aria-label="Ansicht">
-		<a
-			href={href({ ansicht: 'monat' })}
-			aria-current={view === 'monat' ? 'page' : undefined}
-			data-sveltekit-replacestate
-			data-sveltekit-reset="false">Monat</a
-		>
-		<a
-			href={href({ ansicht: 'liste' })}
-			aria-current={view === 'liste' ? 'page' : undefined}
-			data-sveltekit-replacestate
-			data-sveltekit-reset="false">Liste</a
-		>
-	</nav>
-	<a class="button small" href={resolve('/wettkampf/bearbeiten')}>Wettkampf hinzufügen</a>
-</div>
-
-{#snippet item(c: Competition, showDeadline: boolean)}
-	{@const d = showDeadline ? deadline(c) : null}
-	{@const isPast = (c.endDate ?? c.startDate) < today}
-	<li class="card meet" class:next={c.id === nextUpId} class:past={isPast}>
-		<a class="stretched" href={resolve(`/wettkampf?id=${c.id}`)}><strong>{c.name}</strong></a>
-		<div>{formatDateRange(c.startDate, c.endDate)} · {c.location}</div>
-		<div><span class="badge">{COURSE_LABEL[c.course]}</span></div>
-		{#if d && c.entryDeadline}
-			<div class:warning={d.soon}>
-				Meldeschluss {formatDate(c.entryDeadline)} ({relativeDays(d.days)})
-			</div>
-		{/if}
-	</li>
-{/snippet}
-
-{#snippet empty()}
-	<div class="empty">
-		<p><strong>Noch keine Wettkämpfe erfasst.</strong></p>
+{#if $data === undefined}
+	<Loading />
+{:else if isEmpty}
+	<div class="welcome">
+		<h2>Willkommen</h2>
 		<p>
-			Trag den nächsten Wettkampf mit Datum und Meldeschluss ein. Resultate von früheren Wettkämpfen
-			kannst du auch aus einer Lenex-Datei übernehmen.
+			Trag deinen nächsten Wettkampf mit Datum und Meldeschluss ein. Nach dem Rennen erfasst du die
+			Zeit, und hier erscheinen deine Saisonbestzeiten wie auf der Anzeigetafel.
 		</p>
 		<div class="actions">
 			<a class="button" href={resolve('/wettkampf/bearbeiten')}>Ersten Wettkampf eintragen</a>
 			<a class="button secondary" href={resolve('/daten')}>Lenex-Datei einlesen</a>
 		</div>
 	</div>
-{/snippet}
-
-{#if $competitions === undefined}
-	<Loading />
-{:else if view === 'monat'}
-	<div class="month-head">
-		<h2 aria-live="polite">{monthLabel(month)}</h2>
-		<div class="month-nav">
-			<a
-				class="button secondary small"
-				href={href({ monat: monthOf(today) })}
-				data-sveltekit-replacestate
-				data-sveltekit-reset="false">Heute</a
-			>
-			<a
-				class="button secondary small arrow"
-				href={href({ monat: addMonths(month, -1) })}
-				aria-label="Vorheriger Monat"
-				data-sveltekit-replacestate
-				data-sveltekit-reset="false">‹</a
-			>
-			<a
-				class="button secondary small arrow"
-				href={href({ monat: addMonths(month, 1) })}
-				aria-label="Nächster Monat"
-				data-sveltekit-replacestate
-				data-sveltekit-reset="false">›</a
-			>
-		</div>
-	</div>
-
-	<div class="calendar">
-		<div class="weekdays" aria-hidden="true">
-			{#each WEEKDAYS as day (day)}<div>{day}</div>{/each}
-		</div>
-		{#each weeks as week (week.days[0])}
-			<div class="week" style:--lanes={week.lanes}>
-				{#each week.days as day, i (day)}
-					<div
-						class="day"
-						class:outside={monthOf(day) !== month}
-						class:weekend={i >= 5}
-						style:grid-column={i + 1}
+{:else}
+	<!-- Die Resultat-Tafel: Saisonbestzeiten der gewählten Bahnlänge -->
+	<section class="board scoreboard" aria-labelledby="tafel">
+		<div class="board-head">
+			<h2 id="tafel">Saisonbestzeiten{season ? ` ${season.name}` : ''}</h2>
+			<div class="board-tabs" role="group" aria-label="Bahnlänge">
+				{#each ['SCM', 'LCM'] as const as value (value)}
+					<button type="button" aria-pressed={course === value} onclick={() => (chosen = value)}
+						>{value === 'SCM' ? 'Kurzbahn' : 'Langbahn'}</button
 					>
-						<span class="num" class:today={day === today} aria-hidden="true"
-							>{Number(day.slice(8))}</span
-						>
-						<!-- Nur für die Maus: per Tastatur gibt es oben "Wettkampf hinzufügen", sonst wären es 35 Tabstopps -->
-						<a
-							class="add"
-							tabindex="-1"
-							aria-hidden="true"
-							href={resolve(`/wettkampf/bearbeiten?datum=${day}`)}
-							aria-label="Wettkampf am {formatDate(day)} hinzufügen">+</a
-						>
-					</div>
-				{/each}
-				{#each week.placed as p (p.item.key)}
-					<a
-						class="chip {p.item.kind} {p.item.competition.course.toLowerCase()}"
-						class:before={p.continuesBefore}
-						class:after={p.continuesAfter}
-						class:short={p.span < 3}
-						style:grid-column="{p.col + 1} / span {p.span}"
-						style:grid-row={p.lane + 2}
-						href={resolve(`/wettkampf?id=${p.item.competition.id}`)}
-						aria-label={chipLabel(p.item)}
-						title={chipLabel(p.item)}
-					>
-						<!-- Meldeschluss erkennt man am gestrichelten Rahmen (Legende), der volle Text steht im Label -->
-						{p.item.competition.name}
-					</a>
 				{/each}
 			</div>
-		{/each}
+		</div>
+
+		{#if !season}
+			<p class="board-note">
+				Für Saisonbestzeiten zuerst unter <a href={resolve('/daten')}>Daten</a> eine Saison erfassen.
+			</p>
+		{:else if rows.length === 0}
+			<p class="board-note">
+				Auf der {COURSE_LABEL[course]} gibt es in dieser Saison noch keine Zeiten.
+			</p>
+		{:else}
+			<div class="table-wrap">
+				<table>
+					<caption class="visually-hidden">
+						Saisonbestzeiten {season.name}, {COURSE_LABEL[course]}, mit Verbesserung seit
+						Saisonstart
+					</caption>
+					<thead class="visually-hidden">
+						<tr
+							><th scope="col">Strecke</th><th scope="col">Zeit</th><th scope="col"
+								>Seit Saisonstart</th
+							></tr
+						>
+					</thead>
+					<tbody>
+						{#each rows as row (row.history.key)}
+							<tr>
+								<th scope="row">
+									<a href={resolve(`/auswertung?bahn=${course}#${row.history.key}`)}
+										>{raceLabel(row.history)}</a
+									>
+								</th>
+								<td class="led time">{formatTime(row.best.time)}</td>
+								<td class="delta" class:faster={row.diff !== undefined && row.diff < 0}>
+									{row.diff === undefined ? 'neu' : formatDiff(row.diff)}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
+		<a class="board-more" href={resolve(`/auswertung?bahn=${course}`)}>
+			Alle Strecken in der Auswertung <Icon name="chevron-right" size={16} />
+		</a>
+	</section>
+
+	<!-- Was als Nächstes kommt (Prinzip 4) -->
+	<div class="tiles">
+		{#if next}
+			<a class="tile" href={resolve(`/wettkampf?id=${next.id}`)}>
+				<span class="tile-label"><Icon name="flag" size={16} /> Nächster Start</span>
+				<span class="tile-value">{formatShortDate(next.startDate)}</span>
+				<span class="tile-text">{next.name}</span>
+				<span class="tile-text muted">
+					{relativeDays(daysBetween(today, next.startDate))}{plannedCount > 0
+						? ` · ${plannedCount} ${plannedCount === 1 ? 'Lauf' : 'Läufe'} geplant`
+						: ''}
+				</span>
+			</a>
+		{:else}
+			<a class="tile" href={resolve('/wettkampf/bearbeiten')}>
+				<span class="tile-label"><Icon name="flag" size={16} /> Nächster Start</span>
+				<span class="tile-value">Keiner geplant</span>
+				<span class="tile-text">Wettkampf eintragen</span>
+			</a>
+		{/if}
+
+		{#if deadlineFor && deadlineDays !== undefined}
+			<a
+				class="tile"
+				class:soon={deadlineDays <= 7}
+				href={resolve(`/wettkampf?id=${deadlineFor.id}`)}
+			>
+				<span class="tile-label"><Icon name="clock" size={16} /> Meldeschluss</span>
+				<span class="tile-value">{relativeDays(deadlineDays)}</span>
+				<span class="tile-text">{deadlineFor.name}</span>
+				<span class="tile-text muted">{formatDate(deadlineFor.entryDeadline!)}</span>
+			</a>
+		{:else}
+			<div class="tile">
+				<span class="tile-label"><Icon name="clock" size={16} /> Meldeschluss</span>
+				<span class="tile-value">Keiner offen</span>
+			</div>
+		{/if}
 	</div>
 
-	<ul class="legend" aria-label="Legende">
-		<li><span class="swatch scm"></span>{COURSE_LABEL.SCM}</li>
-		<li><span class="swatch lcm"></span>{COURSE_LABEL.LCM}</li>
-		<li><span class="swatch deadline"></span>Meldeschluss (gestrichelt)</li>
-	</ul>
-
-	<h2>Im {monthLabel(month)}</h2>
-	{#if $competitions.length === 0}
-		{@render empty()}
-	{:else if inMonth.length === 0}
-		<p>Keine Wettkämpfe in diesem Monat.</p>
-	{:else}
-		<ul class="plain">
-			{#each inMonth as c (c.id)}{@render item(c, true)}{/each}
-		</ul>
-	{/if}
-{:else if $competitions.length === 0}
-	{@render empty()}
-{:else}
-	<h2>Kommende Wettkämpfe</h2>
-	{#if upcoming.length === 0}
-		<p>Keine geplant.</p>
-	{:else}
-		<ul class="plain">
-			{#each upcoming as c (c.id)}{@render item(c, true)}{/each}
-		</ul>
+	{#if latest.length > 0}
+		<section aria-labelledby="letzte">
+			<h2 id="letzte">Letzte Resultate</h2>
+			<ul class="results">
+				{#each latest as e (e.race.id)}
+					<li>
+						<a href={resolve(`/wettkampf?id=${e.competition.id}`)}>
+							<span class="result-what">
+								<strong>{raceLabel(e.race)}</strong>
+								<span class="muted">{e.competition.name} · {formatShortDate(e.race.date)}</span>
+							</span>
+							<span class="result-time">
+								<span class="board led">{formatTime(e.time)}</span>
+								{#if marks.pb.has(e.race.id)}
+									<span class="badge pb">Bestzeit</span>
+								{:else if marks.sb.has(e.race.id)}
+									<span class="badge sb">Saisonbestzeit</span>
+								{/if}
+							</span>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		</section>
 	{/if}
 
-	{#if past.length > 0}
-		<h2>Vergangene Wettkämpfe</h2>
-		<ul class="plain">
-			{#each past as c (c.id)}{@render item(c, false)}{/each}
-		</ul>
-	{/if}
+	<section aria-labelledby="woche">
+		<div class="section-head">
+			<h2 id="woche">Diese Woche</h2>
+			<a href={resolve('/kalender')}>Ganzer Kalender <Icon name="chevron-right" size={16} /></a>
+		</div>
+		<ol class="week">
+			{#each week as day, i (day)}
+				{@const meets = meetsOn(day)}
+				<li class:today={day === today} class:weekend={i >= 5}>
+					<span class="wd">{WEEKDAYS[i]}</span>
+					<span class="num">{Number(day.slice(8))}</span>
+					{#each meets as c (c.id)}
+						<a
+							class="mark {c.course.toLowerCase()}"
+							href={resolve(`/wettkampf?id=${c.id}`)}
+							aria-label="{c.name}, {formatDate(day)}">{c.name}</a
+						>
+					{/each}
+				</li>
+			{/each}
+		</ol>
+	</section>
 {/if}
 
 <style>
-	.plain {
-		list-style: none;
-		padding: 0;
+	/* Resultat-Tafel */
+	.scoreboard {
+		margin-top: var(--space-6);
+		padding: var(--space-3) var(--space-4) var(--space-2);
 	}
 
-	.toolbar {
+	.board-head {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: var(--space-3);
-		margin: var(--space-4) 0;
-		border-bottom: 1px solid var(--color-line);
+		gap: var(--space-2);
 	}
 
-	/* Die Reiter sitzen auf der Linie der Werkzeugleiste */
-	.toolbar .tabs {
-		margin-bottom: -1px;
+	.board-head h2 {
+		margin: 0;
+		font-size: var(--text-base);
+		font-weight: 500;
+		color: var(--color-board-label);
 	}
 
-	/* Nächster Meldeschluss: das Erste auf der Startseite, als Anzeigetafel */
-	.next-deadline {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		align-items: baseline;
-		gap: 0 var(--space-4);
-		margin-top: var(--space-6);
-		padding: var(--space-3) var(--space-4);
-		text-decoration: none;
+	.board-tabs {
+		display: flex;
+		gap: var(--space-1);
 	}
 
-	.next-deadline:hover {
-		outline: 2px solid var(--color-board-line);
-	}
-
-	.next-deadline .label {
-		grid-column: 1 / -1;
+	.board-tabs button {
+		min-height: 32px;
+		padding: 0 var(--space-3);
+		border: 1px solid var(--color-board-line);
+		border-radius: var(--radius-full);
+		background: transparent;
+		color: var(--color-board-label);
+		font: inherit;
 		font-size: var(--text-sm);
+		cursor: pointer;
 	}
 
-	.next-deadline .what {
-		font-family: var(--font-display);
-		font-size: 1.375rem;
-		color: var(--color-board-text);
-	}
-
-	.next-deadline .what strong {
+	.board-tabs button[aria-pressed='true'] {
+		border-color: var(--color-led);
+		color: var(--color-led);
 		font-weight: 600;
 	}
 
-	.next-deadline .when {
-		font-size: 1.25rem;
+	.board-tabs button:focus-visible,
+	.scoreboard a:focus-visible {
+		outline-color: var(--color-led);
 	}
 
-	/* Ohne Dringlichkeit leuchtet das Datum nicht, bei 7 Tagen oder weniger schon */
-	.next-deadline:not(.soon) .when {
+	.scoreboard table {
+		margin-top: var(--space-2);
+	}
+
+	.scoreboard th,
+	.scoreboard td {
+		padding: var(--space-2) 0;
+		border-bottom: 1px solid var(--color-board-line);
+		vertical-align: baseline;
+	}
+
+	.scoreboard tr:last-child th,
+	.scoreboard tr:last-child td {
+		border-bottom: 0;
+	}
+
+	.scoreboard th a {
+		font-family: var(--font-display);
+		font-size: var(--text-lg);
+		font-weight: 500;
 		color: var(--color-board-text);
+		text-decoration: none;
 	}
 
-	/* Ganze Karte antippbar: der Link spannt sich über die Karte */
-	.meet {
-		position: relative;
+	.scoreboard th a:hover {
+		text-decoration: underline;
 	}
 
-	/* Wettkampfnamen in der Tafel-Schrift, wie die Überschriften */
-	.meet .stretched strong {
+	.time {
+		font-size: 1.625rem;
+		text-align: right;
+		padding-inline: var(--space-3) !important;
+	}
+
+	.delta {
+		width: 4.5rem;
+		text-align: right;
+		font-size: var(--text-sm);
+		color: var(--color-board-label);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+
+	.delta.faster {
+		color: var(--color-board-accent);
+	}
+
+	.board-note {
+		margin: var(--space-3) 0;
+		color: var(--color-board-label);
+	}
+
+	.board-note a {
+		color: var(--color-board-accent);
+	}
+
+	.board-more {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding-block: var(--space-2);
+		color: var(--color-board-accent);
+		font-size: var(--text-sm);
+		text-decoration: none;
+	}
+
+	/* Kacheln: nächster Start und Meldeschluss */
+	.tiles {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-3);
+		margin-top: var(--space-4);
+	}
+
+	.tile {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		padding: var(--space-3);
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius-lg);
+		color: var(--color-text);
+		text-decoration: none;
+		overflow-wrap: anywhere;
+	}
+
+	a.tile:hover {
+		border-color: var(--color-border);
+	}
+
+	.tile-label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: var(--text-sm);
+		color: var(--color-muted);
+	}
+
+	.tile-value {
+		font-family: var(--font-display);
+		font-size: 1.375rem;
+		font-weight: 600;
+		line-height: 1.2;
+	}
+
+	.tile-text {
+		font-size: var(--text-sm);
+	}
+
+	.muted {
+		color: var(--color-muted);
+	}
+
+	.tile.soon {
+		border-color: var(--color-warning);
+	}
+
+	.tile.soon .tile-label,
+	.tile.soon .tile-value {
+		color: var(--color-warning);
+	}
+
+	/* Letzte Resultate */
+	.results {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.results a {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: var(--space-2) 0;
+		border-bottom: 1px solid var(--color-line);
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.result-what {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.result-what strong {
 		font-family: var(--font-display);
 		font-size: var(--text-lg);
 		font-weight: 600;
 	}
 
-	.stretched::after {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
+	.result-what .muted {
+		font-size: var(--text-sm);
 	}
 
-	.meet.next {
-		background: var(--color-bg);
-		border: 1px solid var(--color-primary);
+	.result-time {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: var(--space-1);
 	}
 
-	.meet.past {
-		background: transparent;
+	.result-time .board {
+		padding: 2px var(--space-2);
+		border-radius: var(--radius-md);
+		font-size: var(--text-xl);
+	}
+
+	/* Diese Woche */
+	.section-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-3);
+	}
+
+	.section-head a {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding-block: var(--space-2);
+		font-size: var(--text-sm);
+	}
+
+	.week {
+		display: grid;
+		grid-template-columns: repeat(7, minmax(0, 1fr));
+		list-style: none;
+		padding: 0;
+		margin: 0;
 		border: 1px solid var(--color-line);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+	}
+
+	.week li {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		min-height: 80px;
+		padding: var(--space-1) 2px var(--space-2);
+		border-left: 1px solid var(--color-line);
+	}
+
+	.week li:first-child {
+		border-left: 0;
+	}
+
+	.week li.weekend {
+		background: var(--color-weekend);
+	}
+
+	.wd {
+		font-size: var(--text-xs);
 		color: var(--color-muted);
 	}
 
-	.empty {
+	.num {
+		display: grid;
+		place-items: center;
+		width: 1.6rem;
+		height: 1.6rem;
+		border-radius: var(--radius-full);
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.today .num {
+		background: var(--color-today);
+		color: var(--color-on-today);
+	}
+
+	.mark {
+		align-self: stretch;
+		min-height: 24px;
+		padding: 0 2px;
+		border-radius: var(--radius-sm);
+		font-size: var(--text-2xs);
+		line-height: 24px;
+		color: var(--color-text);
+		text-decoration: none;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.mark.scm {
+		background: var(--color-scm);
+	}
+
+	.mark.lcm {
+		background: var(--color-lcm);
+	}
+
+	.welcome {
+		margin-top: var(--space-6);
 		padding: var(--space-4);
 		border: 1px dashed var(--color-border);
 		border-radius: var(--radius-lg);
 	}
 
-	.empty p {
-		margin: 0 0 var(--space-2);
+	.welcome h2 {
+		margin-top: 0;
 	}
 
-	.toolbar .button {
-		margin-bottom: var(--space-2);
-	}
-
-	.month-head {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
-	}
-
-	.month-head h2 {
-		margin: var(--space-2) 0;
-	}
-
-	.month-nav {
-		display: flex;
-		gap: var(--space-2);
-	}
-
-	.month-nav .button {
-		min-width: 2.25rem;
-		text-align: center;
-	}
-
-	.month-nav .arrow {
-		font-size: var(--text-lg);
-		line-height: 1.1;
-	}
-
-	.calendar {
-		margin-top: var(--space-3);
-		border-top: 1px solid var(--color-line);
-		border-right: 1px solid var(--color-line);
-	}
-
-	.weekdays,
-	.week {
-		display: grid;
-		grid-template-columns: repeat(7, minmax(0, 1fr));
-	}
-
-	.weekdays div {
-		padding: var(--space-1) var(--space-2);
-		font-size: var(--text-xs);
-		color: var(--color-muted);
-		border-left: 1px solid var(--color-line);
-		border-bottom: 1px solid var(--color-line);
-	}
-
-	/* Zeile 1 = Tageszahl, darunter eine Zeile pro Balken, der Rest füllt die Höhe */
-	.week {
-		grid-template-rows: 1.9rem repeat(var(--lanes), auto) 1fr;
-		min-height: 6.5rem;
-	}
-
-	.day {
-		grid-row: 1 / -1;
-		position: relative;
-		border-left: 1px solid var(--color-line);
-		border-bottom: 1px solid var(--color-line);
-	}
-
-	.day.weekend {
-		background: var(--color-weekend);
-	}
-
-	/* Tage aus dem Vor- und Folgemonat: grau, aber mit genug Kontrast (7:1) */
-	.day.outside {
-		background: var(--color-outside);
-	}
-
-	.day.outside .num {
-		color: var(--color-muted);
-	}
-
-	.num {
-		display: inline-grid;
-		place-items: center;
-		min-width: 1.5rem;
-		height: 1.5rem;
-		margin: var(--space-1) var(--space-1);
-		font-size: var(--text-sm);
-		font-variant-numeric: tabular-nums;
-		border-radius: var(--radius-full);
-	}
-
-	.num.today {
-		background: var(--color-today);
-		color: var(--color-on-today);
-		font-weight: 700;
-	}
-
-	/* "+" erscheint wie in Notion erst beim Darüberfahren */
-	.add {
-		position: absolute;
-		top: var(--space-1);
-		right: var(--space-1);
-		width: 1.5rem;
-		height: 1.5rem;
-		display: grid;
-		place-items: center;
-		border-radius: var(--radius-sm);
-		color: var(--color-muted);
-		text-decoration: none;
-		font-size: var(--text-lg);
-		line-height: 1;
-		opacity: 0;
-	}
-
-	.add:hover {
-		background: var(--color-surface);
-	}
-
-	@media (hover: hover) {
-		.day:hover .add,
-		.add:focus-visible {
-			opacity: 1;
-		}
-	}
-
-	@media (hover: none) {
-		.add {
-			display: none;
-		}
-	}
-
-	/* Mindestens 24 px hoch, damit man auch auf dem Handy sicher trifft (WCAG 2.5.8) */
-	.chip {
-		position: relative;
-		z-index: var(--z-raised);
-		display: block;
-		line-height: 22px;
-		margin: 1px 4px;
-		padding: 1px var(--space-2);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-xs);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		text-decoration: none;
-		color: var(--color-text);
-	}
-
-	.chip:hover {
-		filter: brightness(0.95);
-	}
-
-	.chip.scm {
-		background: var(--color-scm);
-	}
-
-	.chip.lcm {
-		background: var(--color-lcm);
-	}
-
-	/* Rahmen statt Innenabstand oben und unten, die Höhe bleibt 24 px */
-	.chip.deadline {
-		padding-block: 0;
-		background: var(--color-bg);
-		border: 1px dashed var(--color-warning);
-		color: var(--color-warning);
-	}
-
-	/* Balken, die in der Woche davor oder danach weiterlaufen, haben eckige Kanten */
-	.chip.before {
-		margin-left: 0;
-		border-top-left-radius: 0;
-		border-bottom-left-radius: 0;
-	}
-
-	.chip.after {
-		margin-right: 0;
-		border-top-right-radius: 0;
-		border-bottom-right-radius: 0;
-	}
-
-	.legend {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-1) var(--space-5);
-		list-style: none;
-		padding: 0;
-		font-size: var(--text-sm);
-		color: var(--color-muted);
-	}
-
-	.legend li {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.swatch {
-		display: inline-block;
-		width: 1rem;
-		height: 0.75rem;
-		border-radius: var(--radius-sm);
-	}
-
-	.swatch.scm {
-		background: var(--color-scm);
-	}
-
-	.swatch.lcm {
-		background: var(--color-lcm);
-	}
-
-	.swatch.deadline {
-		border: 1px dashed var(--color-warning);
-	}
-
-	/* Auf dem Handy sind die Tage nur gut 3 rem breit */
 	@media (max-width: 30rem) {
-		/* Datum unter den Namen statt daneben, sonst bricht der Name mehrfach um */
-		.next-deadline {
-			grid-template-columns: 1fr;
+		.tiles {
+			gap: var(--space-2);
 		}
 
-		.week {
-			min-height: 4.5rem;
-			grid-template-rows: 1.6rem repeat(var(--lanes), auto) 1fr;
-		}
-
-		.weekdays div {
-			padding: var(--space-1);
-			text-align: center;
-		}
-
-		/* Feste Grösse, sonst wird der Kreis für "heute" zum Balken */
-		.num {
-			display: grid;
-			width: 1.3rem;
-			min-width: 0;
-			height: 1.3rem;
-			margin: var(--space-1) auto;
-			padding: 0;
-			font-size: var(--text-xs);
-		}
-
-		.chip {
-			margin: 1px 1px;
-			padding: 1px var(--space-1);
-			font-size: var(--text-2xs);
-		}
-
-		/* Kurze Balken sind zu schmal für lesbaren Text: nur Farbe, der Name steht in der Liste darunter */
-		.chip.short {
-			color: transparent;
+		.tile {
+			padding: var(--space-2) var(--space-3);
 		}
 	}
 </style>

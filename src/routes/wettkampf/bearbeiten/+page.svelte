@@ -20,7 +20,7 @@
 	);
 
 	function backHref() {
-		return id ? resolve(`/wettkampf?id=${id}`) : resolve('/');
+		return id ? resolve(`/wettkampf?id=${id}`) : resolve('/kalender');
 	}
 </script>
 

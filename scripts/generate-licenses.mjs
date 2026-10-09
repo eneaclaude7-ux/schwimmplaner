@@ -23,7 +23,8 @@ const PACKAGES = [
 	'd3-time',
 	'd3-time-format',
 	'fflate',
-	'@fontsource/barlow-semi-condensed'
+	'@fontsource/barlow-semi-condensed',
+	'@tabler/icons'
 ];
 
 function readOptional(dir, pattern) {

@@ -6,8 +6,10 @@ import {
 	bestMarks,
 	buildHistories,
 	formatPercent,
+	latestEntries,
 	personalBest,
-	seasonBest
+	seasonBest,
+	seasonOverview
 } from './stats';
 
 const competition = (id: string, course: Course, name = id): Competition => ({
@@ -142,5 +144,40 @@ describe('racesToCsv', () => {
 			seasons
 		);
 		expect(csv).toContain(`"'=HYPERLINK(""x"";""y"")"`);
+	});
+});
+
+describe('Übersicht', () => {
+	const races = [
+		race('vor', 'kb', '2026-03-01', 7040),
+		race('in1', 'kb', '2026-10-03', 7100),
+		race('in2', 'kb', '2026-10-17', 6850),
+		race('frei', 'kb', '2026-10-17', 2890, { stroke: 'FREE', distance: 50 }),
+		race('lang', 'lb', '2026-10-20', 7300)
+	];
+	const histories = buildHistories(races, competitions, seasons);
+
+	it('zeigt pro Strecke der Bahn die Saisonbestzeit und die Verbesserung seit Saisonstart', () => {
+		const rows = seasonOverview(histories, 'SCM', seasons[1]);
+		expect(rows.map((r) => [r.history.key, r.best.race.id, r.diff])).toEqual([
+			['FREE-50-SCM', 'frei', undefined],
+			['BREAST-100-SCM', 'in2', 6850 - 7040]
+		]);
+	});
+
+	it('mischt die Bahnlängen nie', () => {
+		expect(seasonOverview(histories, 'LCM', seasons[1]).map((r) => r.best.race.id)).toEqual([
+			'lang'
+		]);
+	});
+
+	it('Strecken ohne Zeit in der Saison fehlen', () => {
+		expect(seasonOverview(histories, 'SCM', seasons[0]).map((r) => r.best.race.id)).toEqual([
+			'vor'
+		]);
+	});
+
+	it('liefert die letzten Resultate, neueste zuerst', () => {
+		expect(latestEntries(histories, 3).map((e) => e.race.id)).toEqual(['lang', 'frei', 'in2']);
 	});
 });

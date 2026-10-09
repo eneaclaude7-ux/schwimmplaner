@@ -74,6 +74,17 @@
 		return resolve(`/auswertung?${params}`);
 	}
 
+	// Kommt man mit #strecke (z. B. von der Übersicht), diese Strecke aufklappen
+	$effect(() => {
+		const key = page.url.hash.slice(1);
+		if (!key || !$data) return;
+		const details = document.getElementById(key);
+		if (details instanceof HTMLDetailsElement) {
+			details.open = true;
+			details.scrollIntoView();
+		}
+	});
+
 	/** Strecke aus der Übersicht öffnen und hinspringen */
 	function open(key: string) {
 		const details = document.getElementById(key) as HTMLDetailsElement | null;
@@ -107,8 +118,8 @@
 	<Loading />
 {:else if histories.length === 0}
 	<p>
-		Noch keine geschwommenen Zeiten. Trage bei einem <a href={resolve('/')}>Wettkampf</a> ein Resultat
-		ein, dann erscheinen hier Bestzeiten und Verbesserungen.
+		Noch keine geschwommenen Zeiten. Trage bei einem <a href={resolve('/kalender')}>Wettkampf</a> ein
+		Resultat ein, dann erscheinen hier Bestzeiten und Verbesserungen.
 	</p>
 {:else}
 	<div class="filters">
@@ -161,7 +172,8 @@
 		</p>
 	{:else}
 		<h2>Übersicht {COURSE_LABEL[course]}</h2>
-		<div class="table-wrap">
+		<!-- Resultat-Tafel wie auf der Übersicht: Zeiten in Leuchtziffern -->
+		<div class="table-wrap board overview">
 			<table>
 				<caption class="visually-hidden">Bestzeiten {COURSE_LABEL[course]}</caption>
 				<thead>
@@ -183,11 +195,14 @@
 								<a href="#{h.key}" onclick={() => open(h.key)}>{raceLabel(h)}</a>
 							</th>
 							<td class="num">
-								{formatTime(pb.time)}<br /><span class="small">{formatDate(pb.race.date)}</span>
+								<span class="led">{formatTime(pb.time)}</span><br /><span class="small"
+									>{formatDate(pb.race.date)}</span
+								>
 							</td>
 							{#if season}
 								<td class="num"
-									>{#if sb}{formatTime(sb.time)}{:else}{@render none()}{/if}</td
+									>{#if sb}<span class="led">{formatTime(sb.time)}</span
+										>{:else}{@render none()}{/if}</td
 								>
 								<td class="num">
 									{#if sb}{@render diff(
@@ -289,6 +304,47 @@
 
 	.filters .field {
 		margin-bottom: var(--space-2);
+	}
+
+	/* Resultat-Tafel: dunkle Fläche, Beschriftungen grau, Zeiten leuchtgelb */
+	.overview {
+		padding: var(--space-1) var(--space-2);
+	}
+
+	.overview th,
+	.overview td {
+		border-bottom-color: var(--color-board-line);
+		color: var(--color-board-text);
+	}
+
+	.overview thead th {
+		color: var(--color-board-label);
+		font-weight: 500;
+		font-size: var(--text-sm);
+	}
+
+	.overview tbody tr:last-child th,
+	.overview tbody tr:last-child td {
+		border-bottom: 0;
+	}
+
+	.overview a {
+		color: var(--color-board-text);
+		font-family: var(--font-display);
+		font-size: var(--text-lg);
+		font-weight: 500;
+	}
+
+	.overview a:focus-visible {
+		outline-color: var(--color-led);
+	}
+
+	.overview .led {
+		font-size: var(--text-xl);
+	}
+
+	.overview .small {
+		color: var(--color-board-label);
 	}
 
 	/* Jede Strecke klappt einzeln auf, damit man nicht an allen vorbeiscrollen muss */

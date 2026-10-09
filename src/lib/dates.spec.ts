@@ -4,6 +4,7 @@ import {
 	daysBetween,
 	formatDate,
 	formatDateRange,
+	formatShortDate,
 	isIsoDate,
 	relativeDays,
 	todayIso
@@ -56,5 +57,12 @@ describe('datesInRange', () => {
 			'2026-11-15',
 			'2026-11-16'
 		]);
+	});
+});
+
+describe('formatShortDate', () => {
+	it('Wochentag und Tag.Monat', () => {
+		expect(formatShortDate('2026-10-17')).toBe('Sa 17.10.');
+		expect(formatShortDate('2026-10-05')).toBe('Mo 05.10.');
 	});
 });

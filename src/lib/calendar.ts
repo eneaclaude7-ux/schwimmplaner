@@ -129,3 +129,13 @@ export function nextDeadline(competitions: Competition[], today: IsoDate): Compe
 	}
 	return next;
 }
+
+/** Der nächste Wettkampf, der noch kommt oder gerade läuft */
+export function nextCompetition(
+	competitions: Competition[],
+	today: IsoDate
+): Competition | undefined {
+	return competitions
+		.filter((c) => (c.endDate ?? c.startDate) >= today)
+		.sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+}
