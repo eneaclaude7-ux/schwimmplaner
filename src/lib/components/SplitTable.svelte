@@ -59,9 +59,10 @@
 {/if}
 
 <style>
+	/* Schmale Zellen, damit die Tabelle auch auf dem Handy ohne Scrollen passt */
 	th,
 	td {
-		padding-block: var(--space-1);
+		padding: var(--space-1);
 		white-space: nowrap;
 	}
 

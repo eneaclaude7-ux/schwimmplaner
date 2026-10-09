@@ -22,7 +22,8 @@ const PACKAGES = [
 	'd3-interpolate',
 	'd3-time',
 	'd3-time-format',
-	'fflate'
+	'fflate',
+	'@fontsource/barlow-semi-condensed'
 ];
 
 function readOptional(dir, pattern) {

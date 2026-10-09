@@ -1,10 +1,12 @@
-// Erzeugt die App-Icons (PNG) ohne fremde Bibliotheken: blauer Hintergrund, drei weisse Wellen.
+// Erzeugt die App-Icons (PNG) ohne fremde Bibliotheken. Gleiche Bildmarke wie src/lib/assets/favicon.svg:
+// "SP" in Leuchtsegmenten wie auf der Anzeigetafel, darunter die Welle.
 // Eigenes Werk, darum keine Lizenzfragen. Aufruf: node scripts/generate-icons.mjs
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const BLUE = [11, 79, 138];
-const WHITE = [255, 255, 255];
+const BOARD = [16, 20, 24]; // #101418, --color-board
+const LED = [245, 197, 24]; // #f5c518, --color-led
+const WAVE = [31, 162, 184]; // #1fa2b8, --color-wave
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
 	let c = n;
@@ -49,17 +51,85 @@ function png(size, pixel) {
 	]);
 }
 
-// Wellen nur in der inneren Zone, damit "maskable" Icons beim Zuschneiden nichts verlieren
-function waves(u, v, size) {
-	if (u < 0.22 || u > 0.78) return BLUE;
-	let coverage = 0;
-	for (const center of [0.38, 0.5, 0.62]) {
-		const y = center + 0.03 * Math.sin(((u - 0.22) / 0.28) * Math.PI);
-		const dist = Math.abs(v - y) * size;
-		const half = 0.03 * size;
-		coverage = Math.max(coverage, Math.min(1, Math.max(0, half - dist + 0.5)));
+// Die Bildmarke aus favicon.svg im 64er-Raster: zehn abgerundete Segmente und eine Wellenlinie
+const SEGMENTS = [
+	[14, 13, 12, 5],
+	[11, 15, 5, 13],
+	[14, 27.5, 12, 5],
+	[24, 31, 5, 13],
+	[14, 41, 12, 5],
+	[38, 13, 12, 5],
+	[35, 15, 5, 13],
+	[48, 15, 5, 13],
+	[38, 27.5, 12, 5],
+	[35, 31, 5, 13]
+];
+const CORNER = 1.5;
+
+function inRoundedRect(x, y, [rx, ry, w, h]) {
+	if (x < rx || x > rx + w || y < ry || y > ry + h) return false;
+	// Abstand zur Ecke nur prüfen, wenn der Punkt im Eckbereich liegt
+	const cx = Math.min(Math.max(x, rx + CORNER), rx + w - CORNER);
+	const cy = Math.min(Math.max(y, ry + CORNER), ry + h - CORNER);
+	return Math.hypot(x - cx, y - cy) <= CORNER;
+}
+
+function bezier(p0, p1, p2, p3, steps = 24) {
+	return Array.from({ length: steps + 1 }, (_, i) => {
+		const t = i / steps;
+		const m = 1 - t;
+		return [0, 1].map(
+			(k) => m * m * m * p0[k] + 3 * m * m * t * p1[k] + 3 * m * t * t * p2[k] + t * t * t * p3[k]
+		);
+	});
+}
+const WAVE_LINE = [
+	...bezier([11, 54], [17, 50], [23, 50], [29, 54]),
+	...bezier([29, 54], [35, 58], [41, 58], [53, 52])
+];
+const WAVE_HALF = 1.75; // halbe Linienbreite (3.5 im SVG)
+
+function distanceToWave(x, y) {
+	let best = Infinity;
+	for (let i = 1; i < WAVE_LINE.length; i++) {
+		const [ax, ay] = WAVE_LINE[i - 1];
+		const [bx, by] = WAVE_LINE[i];
+		const dx = bx - ax;
+		const dy = by - ay;
+		// Zwei Kurvenstücke teilen sich einen Punkt: Segment der Länge null überspringen (sonst NaN)
+		if (dx === 0 && dy === 0) continue;
+		const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
+		best = Math.min(best, Math.hypot(x - ax - t * dx, y - ay - t * dy));
 	}
-	return BLUE.map((c, i) => Math.round(c + (WHITE[i] - c) * coverage));
+	return best;
+}
+
+/**
+ * Ein Pixel des Icons. Der Hintergrund füllt das ganze Quadrat (das System rundet die Ecken selbst ab),
+ * die Bildmarke sitzt verkleinert in der Mitte, damit "maskable" Icons beim Zuschneiden nichts verlieren.
+ */
+function mark(u, v, size) {
+	const SCALE = 0.8; // Anteil der Bildmarke an der Icon-Breite
+	let r = 0;
+	let g = 0;
+	let b = 0;
+	const SAMPLES = 4; // 4 × 4 Unterabtastung für glatte Kanten
+	for (let sy = 0; sy < SAMPLES; sy++) {
+		for (let sx = 0; sx < SAMPLES; sx++) {
+			const pu = u + (sx + 0.5 - SAMPLES / 2) / (SAMPLES * size);
+			const pv = v + (sy + 0.5 - SAMPLES / 2) / (SAMPLES * size);
+			const x = ((pu - 0.5) / SCALE + 0.5) * 64;
+			const y = ((pv - 0.5) / SCALE + 0.5) * 64;
+			let color = BOARD;
+			if (SEGMENTS.some((seg) => inRoundedRect(x, y, seg))) color = LED;
+			else if (distanceToWave(x, y) <= WAVE_HALF) color = WAVE;
+			r += color[0];
+			g += color[1];
+			b += color[2];
+		}
+	}
+	const n = SAMPLES * SAMPLES;
+	return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
 }
 
 mkdirSync('static/icons', { recursive: true });
@@ -68,6 +138,6 @@ for (const [name, size] of [
 	['icon-512.png', 512],
 	['apple-touch-icon.png', 180]
 ]) {
-	writeFileSync(`static/icons/${name}`, png(size, waves));
+	writeFileSync(`static/icons/${name}`, png(size, mark));
 	console.log(`static/icons/${name}`);
 }

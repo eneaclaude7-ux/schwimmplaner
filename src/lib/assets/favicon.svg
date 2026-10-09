@@ -1,1 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>Schwimmplaner</title><rect width="64" height="64" rx="12" fill="#0b4f8a"/><g fill="none" stroke="#fff" stroke-width="3.8" stroke-linecap="round"><path d="M14 24.3Q23 28.1 32 24.3T50 24.3"/><path d="M14 32Q23 35.8 32 32T50 32"/><path d="M14 39.7Q23 43.5 32 39.7T50 39.7"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+	<!-- Bildmarke Schwimmplaner: "SP" in Leuchtsegmenten wie auf der Anzeigetafel, darunter die Welle -->
+	<rect width="64" height="64" rx="12" fill="#1b2228" />
+	<g fill="#f5c518">
+		<rect x="14" y="13" width="12" height="5" rx="1.5" />
+		<rect x="11" y="15" width="5" height="13" rx="1.5" />
+		<rect x="14" y="27.5" width="12" height="5" rx="1.5" />
+		<rect x="24" y="31" width="5" height="13" rx="1.5" />
+		<rect x="14" y="41" width="12" height="5" rx="1.5" />
+		<rect x="38" y="13" width="12" height="5" rx="1.5" />
+		<rect x="35" y="15" width="5" height="13" rx="1.5" />
+		<rect x="48" y="15" width="5" height="13" rx="1.5" />
+		<rect x="38" y="27.5" width="12" height="5" rx="1.5" />
+		<rect x="35" y="31" width="5" height="13" rx="1.5" />
+	</g>
+	<path
+		d="M11 54 C17 50 23 50 29 54 C35 58 41 58 53 52"
+		fill="none"
+		stroke="#1fa2b8"
+		stroke-width="3.5"
+		stroke-linecap="round"
+	/>
+</svg>

@@ -77,4 +77,9 @@
 		border-color: var(--color-surface);
 		background: var(--color-surface);
 	}
+
+	/* Auf der dunklen Leiste reicht der türkise Fokusrahmen nicht: hier gelb */
+	.toast .button:focus-visible {
+		outline-color: var(--color-led);
+	}
 </style>

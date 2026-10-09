@@ -76,9 +76,9 @@
 
 <h2>Keine Dritten</h2>
 <p>
-	Die App lädt nichts von fremden Servern: keine Schriften, keine Karten, keine Videos, keine
-	Analyse-Werkzeuge. Die verwendeten Bibliotheken laufen nur in deinem Browser und senden nichts
-	(siehe <a href={resolve('/lizenzen')}>Lizenzen</a>).
+	Die App lädt nichts von fremden Servern. Die Schrift wird mit der App ausgeliefert, und es gibt
+	keine Karten, keine Videos und keine Analyse-Werkzeuge. Die verwendeten Bibliotheken laufen nur in
+	deinem Browser und senden nichts (siehe <a href={resolve('/lizenzen')}>Lizenzen</a>).
 </p>
 
 <h2>Deine Rechte und Möglichkeiten</h2>

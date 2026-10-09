@@ -260,6 +260,13 @@
 		stroke-width: 2;
 	}
 
+	/* Bestzeit wie auf der Anzeigetafel: gelb, mit dunklem Ring für genug Kontrast auf Weiss */
+	.dot.best {
+		fill: var(--color-led);
+		stroke: var(--color-ink);
+		stroke-width: 2;
+	}
+
 	.best-label {
 		fill: var(--color-text);
 		font-size: var(--text-xs);

@@ -32,7 +32,7 @@
 | fflate                 | im Browser              | nein, entpackt nur die gewählte Lenex-Datei                                                                                  |
 | GitHub Pages           | Server von GitHub (USA) | ja: Beim Abruf der Seite sieht GitHub technisch die IP-Adresse und muss sie verarbeiten. Gehört in die Datenschutzerklärung. |
 
-Es gibt keine Tracking-SDKs, keine CDNs und keine externen Schriften. Alles wird mit der App ausgeliefert.
+Es gibt keine Tracking-SDKs, keine CDNs und keine externen Schriften. Alles wird mit der App ausgeliefert, auch die Schrift Barlow Semi Condensed (@fontsource, OFL-1.1).
 
 ## Bekannte Nachteile und Gegenmittel
 

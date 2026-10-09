@@ -33,3 +33,4 @@ Nach dem Rennen ist die Endzeit auf dem Handy in unter 30 Sekunden erfasst, und 
 ## 6. Learned constraints
 
 - **2026-10-08** — Der Kalender ist ein echtes Monatsraster im Stil von Notion (Balken über mehrere Tage, Farbe nach Bahnlänge), die Liste nur die zweite Ansicht. _Why:_ Eine reine Liste las sich nicht als Kalender; Planen heisst Wochen und Abstände sehen.
+- **2026-10-09** — Design-Richtung "Anzeigetafel": dunkle Tafeln (`--color-board`) mit gelben Leuchtziffern (`--color-led`) für Zeiten, den Kopf und den nächsten Meldeschluss; Bildmarke "SP" in Leuchtsegmenten mit Welle; Schrift Barlow Semi Condensed für Überschriften und Zeiten. Gelb nur als Fläche mit dunkler Schrift oder auf der Tafel, nie als Textfarbe auf Weiss. _Why:_ Ein schlichtes Wellen-Logo war Enea "zu basic"; aus drei Richtungen hat er die Anzeigetafel gewählt, weil Zeiten wie in der Halle wirken sollen.

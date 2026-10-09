@@ -95,10 +95,14 @@
 <h1 class="visually-hidden">Wettkampfkalender</h1>
 
 {#if next && nextInfo}
-	<a class="next-deadline" class:soon={nextInfo.soon} href={resolve(`/wettkampf?id=${next.id}`)}>
-		<span class="label">Nächster Meldeschluss</span>
+	<a
+		class="next-deadline board"
+		class:soon={nextInfo.soon}
+		href={resolve(`/wettkampf?id=${next.id}`)}
+	>
+		<span class="label board-label">Nächster Meldeschluss</span>
 		<span class="what"><strong>{next.name}</strong></span>
-		<span class="when">{formatDate(next.entryDeadline!)} · {relativeDays(nextInfo.days)}</span>
+		<span class="when led">{formatDate(next.entryDeadline!)} · {relativeDays(nextInfo.days)}</span>
 	</a>
 {/if}
 
@@ -281,45 +285,55 @@
 		margin-bottom: -1px;
 	}
 
-	/* Nächster Meldeschluss: das Erste auf der Startseite */
+	/* Nächster Meldeschluss: das Erste auf der Startseite, als Anzeigetafel */
 	.next-deadline {
 		display: grid;
 		grid-template-columns: 1fr auto;
+		align-items: baseline;
 		gap: 0 var(--space-4);
 		margin-top: var(--space-6);
 		padding: var(--space-3) var(--space-4);
-		border: 1px solid var(--color-line);
-		border-radius: var(--radius-lg);
-		color: var(--color-text);
 		text-decoration: none;
 	}
 
 	.next-deadline:hover {
-		border-color: var(--color-border);
+		outline: 2px solid var(--color-board-line);
 	}
 
 	.next-deadline .label {
 		grid-column: 1 / -1;
 		font-size: var(--text-sm);
-		color: var(--color-muted);
+	}
+
+	.next-deadline .what {
+		font-family: var(--font-display);
+		font-size: 1.375rem;
+		color: var(--color-board-text);
+	}
+
+	.next-deadline .what strong {
+		font-weight: 600;
 	}
 
 	.next-deadline .when {
-		font-variant-numeric: tabular-nums;
+		font-size: 1.25rem;
 	}
 
-	.next-deadline.soon {
-		border-color: var(--color-warning);
-	}
-
-	.next-deadline.soon .when {
-		color: var(--color-warning);
-		font-weight: 600;
+	/* Ohne Dringlichkeit leuchtet das Datum nicht, bei 7 Tagen oder weniger schon */
+	.next-deadline:not(.soon) .when {
+		color: var(--color-board-text);
 	}
 
 	/* Ganze Karte antippbar: der Link spannt sich über die Karte */
 	.meet {
 		position: relative;
+	}
+
+	/* Wettkampfnamen in der Tafel-Schrift, wie die Überschriften */
+	.meet .stretched strong {
+		font-family: var(--font-display);
+		font-size: var(--text-lg);
+		font-weight: 600;
 	}
 
 	.stretched::after {
@@ -440,7 +454,7 @@
 
 	.num.today {
 		background: var(--color-today);
-		color: var(--color-on-accent);
+		color: var(--color-on-today);
 		font-weight: 700;
 	}
 

@@ -260,18 +260,28 @@
 							<h3 id="race-{race.id}" tabindex="-1">{raceName(race)}</h3>
 							{#if multiDay}<span class="muted">{formatDate(race.date)}</span>{/if}
 						</div>
-						<div class="result-line">
-							<span class="result" class:pending={race.status !== 'finished'}
-								>{resultText(race)}</span
-							>
-							{#if $marks?.pb.has(race.id)}
-								<span class="badge pb">Bestzeit</span>
-							{:else if $marks?.sb.has(race.id)}
-								<span class="badge sb">Saisonbestzeit</span>
+						{#if race.status === 'finished' && race.result !== undefined}
+							<!-- Die Zeit auf der Anzeigetafel: das, worum es nach dem Rennen geht -->
+							<div class="board result-board">
+								<div class="result-line">
+									<span class="led result">{formatTime(race.result)}</span>
+									{#if $marks?.pb.has(race.id)}
+										<span class="badge pb">Bestzeit</span>
+									{:else if $marks?.sb.has(race.id)}
+										<span class="badge sb">Saisonbestzeit</span>
+									{/if}
+								</div>
+								{#if targetLine(race)}
+									<p class="target-line" class:faster={faster(race)}>{targetLine(race)}</p>
+								{/if}
+							</div>
+						{:else}
+							<div class="result-line">
+								<span class="result pending">{resultText(race)}</span>
+							</div>
+							{#if targetLine(race)}
+								<p class="target-line">{targetLine(race)}</p>
 							{/if}
-						</div>
-						{#if targetLine(race)}
-							<p class="target-line" class:faster={faster(race)}>{targetLine(race)}</p>
 						{/if}
 						{#if savedId === race.id}
 							<p id="saved-{race.id}" class="saved" tabindex="-1">{savedText(race)}</p>
@@ -429,7 +439,7 @@
 
 	.race-head h3 {
 		margin: 0;
-		font-size: var(--text-base);
+		font-size: var(--text-lg);
 	}
 
 	.muted {
@@ -445,11 +455,29 @@
 		margin-top: var(--space-1);
 	}
 
+	.result-board {
+		margin-block: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+	}
+
 	.result {
-		font-size: 1.5rem;
-		font-weight: 700;
-		font-variant-numeric: tabular-nums;
-		letter-spacing: -0.01em;
+		font-size: 2rem;
+		line-height: 1.1;
+	}
+
+	/* Auf der Tafel: Saisonbestzeit gelb umrandet, Abweichung türkis (schneller) oder grau */
+	.result-board .badge.sb {
+		border-color: var(--color-led);
+		color: var(--color-led);
+	}
+
+	.result-board .target-line {
+		margin: 0;
+		color: var(--color-board-label);
+	}
+
+	.result-board .target-line.faster {
+		color: var(--color-board-accent);
 	}
 
 	.result.pending {

@@ -1,25 +1,46 @@
-/* Systemschriften: nichts wird von fremden Servern geladen, keine Lizenzfragen. */
+/*
+ * Design "Anzeigetafel": dunkle Tafeln mit gelben Leuchtziffern für Zeiten und den Kopf,
+ * sonst helle, ruhige Flächen. Alle Kontraste geprüft (WCAG 2), Werte in den Kommentaren.
+ * Die Schrift Barlow Semi Condensed wird mit der App ausgeliefert, nichts von fremden Servern.
+ */
 :root {
-	--color-text: #1a1a1a;
-	--color-muted: #444; /* 9.7:1 auf Weiss, APCA etwa Lc 92 für kleine Hinweise */
+	--color-text: #13202a; /* 16.6:1 auf Weiss */
+	--color-muted: #3b4a52; /* 9.2:1 auf Weiss, 8.2:1 auf --color-surface */
 	--color-bg: #ffffff;
-	--color-surface: #f2f5f8;
-	--color-primary: #0b4f8a; /* Kontrast auf Weiss 8.4:1 (WCAG AA verlangt 4.5:1) */
-	--color-primary-hover: #083c69; /* dunkler beim Darüberfahren */
+	--color-surface: #eef2f4;
+	--color-primary: #0a6478; /* Links, Diagramme, Fokus: 6.8:1 auf Weiss */
+	--color-primary-hover: #084d5c;
+	--color-ink: #13202a; /* Hauptknöpfe: weisse Schrift darauf 16.6:1 */
+	--color-ink-hover: #2c3a44;
 	--color-danger: #b00020; /* 7.3:1 */
 	--color-danger-tint: #fdecee; /* Hintergrund beim Darüberfahren über Löschen */
 	--color-warning: #8a4b00; /* 6.8:1 */
-	--color-border: #767676; /* 4.5:1, Formularrahmen brauchen 3:1 */
-	--color-line: #e2e2e2; /* nur Raster im Kalender, keine Bedienelemente */
-	--color-weekend: #fafafa;
-	--color-outside: #f0f0f0; /* Tage aus dem Vor- und Folgemonat */
-	--color-today: #c62828; /* weisse Schrift darauf 5.6:1 */
-	--color-scm: #dbe8f6; /* Kurzbahn, Text darauf 14:1 */
-	--color-lcm: #b4dfc2; /* Langbahn, deutlich dunkler als Kurzbahn, Text darauf 11:1 */
+	--color-border: #7b8c94; /* Formularrahmen 3.5:1 (verlangt sind 3:1) */
+	--color-line: #dde4e8; /* nur Trennlinien und Raster, keine Bedienelemente */
+	--color-weekend: #f7f9fa;
+	--color-outside: #edf1f3; /* Tage aus dem Vor- und Folgemonat */
+	--color-today: #f5c518; /* Leuchtgelb, Schrift darauf --color-on-today 10.2:1 */
+	--color-on-today: #13202a;
+	--color-scm: #d3eaf3; /* Kurzbahn, Text darauf 12.8:1 */
+	--color-lcm: #a7d8c4; /* Langbahn, deutlich dunkler als Kurzbahn, Text darauf 10.1:1 */
 	/* Zwei Rennen im Vergleich: geprüft auf Farbsehschwäche (dataviz-Validator), dazu Form als zweites Merkmal */
 	--color-series-a: #2a78d6;
 	--color-series-b: #eb6834;
-	--color-on-accent: #ffffff; /* Schrift auf Primär-, Gefahr- und Heute-Farbe */
+	--color-on-accent: #ffffff; /* Schrift auf Knopf- und Gefahrfarbe */
+
+	/* Anzeigetafel */
+	--color-board: #101418;
+	--color-board-tile: #1b2228; /* Kachel der Bildmarke */
+	--color-board-line: #2a333b;
+	--color-led: #f5c518; /* Leuchtziffern: 11.4:1 auf der Tafel */
+	--color-board-text: #ffffff; /* 18.5:1 */
+	--color-board-label: #a9b6be; /* Beschriftungen auf der Tafel: 8.9:1 */
+	--color-board-accent: #7fd3e1; /* Text in Türkis auf der Tafel: 10.8:1 */
+	--color-wave: #1fa2b8; /* Welle in der Bildmarke (Grafik): 6.1:1 auf der Tafel */
+
+	/* Schriften: Anzeigetafel-Schrift für Überschriften und Zeiten, Systemschrift für Fliesstext */
+	--font-display: 'Barlow Semi Condensed', system-ui, sans-serif;
+	--font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
 	/* Abstände: 4-px-Raster, --space-N = N × 4 px */
 	--space-1: 0.25rem;
@@ -53,12 +74,7 @@
 
 	color-scheme: light;
 
-	font-family:
-		system-ui,
-		-apple-system,
-		'Segoe UI',
-		Roboto,
-		sans-serif;
+	font-family: var(--font-body);
 	line-height: 1.5;
 	color: var(--color-text);
 	background: var(--color-bg);
@@ -72,9 +88,12 @@ body {
 
 /* Grosse Überschriften enger gesetzt, Umbrüche ausgeglichen */
 h1,
-h2 {
-	line-height: 1.2;
-	letter-spacing: -0.02em;
+h2,
+h3 {
+	font-family: var(--font-display);
+	font-weight: 600;
+	line-height: 1.15;
+	letter-spacing: 0;
 	text-wrap: balance;
 	/* Lange deutsche Wörter nach Silben trennen ("Nachwuchs-schwimm-meeting") */
 	hyphens: auto;
@@ -83,14 +102,17 @@ h2 {
 /* Mehr Abstand nach oben als nach unten: die Überschrift gehört zum Inhalt darunter */
 h1 {
 	margin-block: var(--space-6) var(--space-4);
+	font-size: 2.25rem;
 }
 
 h2 {
 	margin-block: var(--space-8) var(--space-3);
+	font-size: 1.625rem;
 }
 
 h3 {
 	margin-block: var(--space-6) var(--space-2);
+	font-size: 1.25rem;
 }
 
 a {
@@ -131,9 +153,9 @@ a {
 .button {
 	display: inline-block;
 	padding: var(--space-2) var(--space-4);
-	border: 2px solid var(--color-primary);
+	border: 2px solid var(--color-ink);
 	border-radius: var(--radius-md);
-	background: var(--color-primary);
+	background: var(--color-ink);
 	color: var(--color-on-accent);
 	font: inherit;
 	font-weight: 600;
@@ -143,8 +165,8 @@ a {
 }
 
 .button:hover {
-	background: var(--color-primary-hover);
-	border-color: var(--color-primary-hover);
+	background: var(--color-ink-hover);
+	border-color: var(--color-ink-hover);
 }
 
 .button:active {
@@ -159,12 +181,12 @@ a {
 
 .button.secondary {
 	background: transparent;
-	color: var(--color-primary);
+	color: var(--color-ink);
 }
 
 .button.secondary:hover {
 	background: var(--color-surface);
-	border-color: var(--color-primary);
+	border-color: var(--color-ink);
 }
 
 .button.danger {
@@ -267,7 +289,7 @@ fieldset {
 
 .tabs a[aria-current='page'],
 .tabs a[aria-current='true'] {
-	border-bottom-color: var(--color-text);
+	border-bottom-color: var(--color-ink);
 	color: var(--color-text);
 	font-weight: 600;
 }
@@ -292,6 +314,8 @@ fieldset {
 /* Tabellen: auf schmalen Bildschirmen seitlich scrollbar statt abgeschnitten */
 .table-wrap {
 	overflow-x: auto;
+	/* Unsichtbare Screenreader-Texte in Zellen bleiben im Scrollbereich, statt die Seite zu verbreitern */
+	position: relative;
 }
 
 table {
@@ -331,16 +355,38 @@ th.num {
 
 /* Bestzeit ist der beste Moment in der App: gefüllt, nicht nur ein Etikett */
 .badge.pb {
-	border-color: var(--color-primary);
-	background: var(--color-primary);
-	color: var(--color-on-accent);
+	border-color: var(--color-led);
+	background: var(--color-led);
+	color: var(--color-on-today);
 	font-weight: 600;
 }
 
 .badge.sb {
-	border-color: var(--color-primary);
-	color: var(--color-primary);
+	border-color: var(--color-ink);
+	color: var(--color-ink);
 	font-weight: 600;
+}
+
+/*
+ * Anzeigetafel: dunkle Fläche, Zeiten in gelben Leuchtziffern. Das Erkennungszeichen der App,
+ * darum nur für Zeiten und den nächsten Meldeschluss, nicht für beliebige Inhalte.
+ */
+.board {
+	background: var(--color-board);
+	color: var(--color-board-text);
+	border-radius: var(--radius-lg);
+}
+
+.led {
+	font-family: var(--font-display);
+	font-weight: 600;
+	color: var(--color-led);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.04em;
+}
+
+.board-label {
+	color: var(--color-board-label);
 }
 
 .warning {
