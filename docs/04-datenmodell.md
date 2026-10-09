@@ -8,7 +8,7 @@ Athlet 1 ──── n Lauf n ──── 1 Wettkampf
                  └── Splits (Liste im Lauf)
 ```
 
-- **Gespeichert** werden vier Tabellen: `athletes`, `competitions`, `races` und `seasons`.
+- **Gespeichert** werden vier Tabellen: `athletes`, `competitions`, `races` und `seasons`. Dazu kommt `meta` für Einstellungen des Geräts (seit Version 2: Zeitpunkt des letzten Backups).
 - **Ziel und Resultat** sind Felder im Lauf, keine eigenen Tabellen. Jeder Lauf hat genau ein Ziel und ein Resultat (1:1). Für eine 1:1-Beziehung braucht es keine eigene Tabelle.
 - **Splits** sind eine Liste im Lauf. Sie gehören immer zu genau einem Lauf und werden nie einzeln gesucht.
 - **Nicht gespeichert, sondern immer berechnet:** persönliche Bestzeit, Saisonbestzeit, Abweichung vom Ziel, Verbesserung in Sekunden und Prozent, Lap-Zeiten. Würde man diese Werte speichern, wären sie nach jeder Korrektur einer Zeit falsch.
@@ -125,7 +125,7 @@ Eine Saison hat ein paar Dutzend bis wenige Hundert Läufe. Die App lädt alles 
 
 Gespeichert werden kein Jahrgang, kein Geschlecht und kein Verein, denn das MVP braucht diese Angaben nicht. Sie kommen erst dazu, wenn eine Funktion sie braucht, zum Beispiel Qualifikationslimiten in Version 2.
 
-## Dexie-Schema (Version 1)
+## Dexie-Schema (Version 2)
 
 ```ts
 db.version(1).stores({
@@ -134,7 +134,14 @@ db.version(1).stores({
 	races: 'id, athleteId, competitionId, date',
 	seasons: 'id, startDate'
 });
+
+// Version 2 (10.10.2026): nur die neue Tabelle, die übrigen bleiben unverändert
+db.version(2).stores({
+	meta: 'key'
+});
 ```
+
+`meta` gehört nicht ins Backup. Nach "Backup herunterladen" steht dort der Zeitpunkt (`lastBackup`); beim Einlesen eines Backups dessen `exportedAt`. Die Übersicht erinnert ans Backup, sobald eine Änderung 7 Tage alt ist und in keinem Backup steckt (`backupDue` in `src/lib/backup.ts`).
 
 Indizes gibt es nur für die Felder, nach denen sortiert oder gefiltert wird. Alles andere speichert Dexie trotzdem mit.
 

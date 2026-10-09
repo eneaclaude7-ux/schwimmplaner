@@ -140,5 +140,5 @@ Seite "Daten", Abschnitt "Resultate einlesen (Lenex)". Code: [src/lib/lenex.ts](
 ## Bekannte Grenzen von Phase 1
 
 - **Kein Sync:** Die Daten sind nur auf einem Gerät. Der Sync zwischen Geräten kommt in Phase 2.
-- **Datenverlust möglich:** Ohne Installation auf dem Homescreen darf Safari die Daten nach 7 Tagen ohne Besuch löschen. Darum: installieren und regelmässig exportieren.
+- **Datenverlust möglich:** Ohne Installation auf dem Homescreen darf Safari die Daten nach 7 Tagen ohne Besuch löschen. Darum: installieren und regelmässig exportieren. Die Übersicht erinnert ans Backup, sobald eine Änderung 7 Tage alt ist und in keinem Backup steckt.
 - **Nicht in Suchmaschinen:** `static/robots.txt` sperrt Suchmaschinen, solange die App nur für den Eigengebrauch ist.

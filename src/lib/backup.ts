@@ -1,5 +1,5 @@
 // Export und Import aller Daten als JSON. Das ist zugleich Backup und Datenexport (nDSG/DSGVO).
-import { isIsoDate } from './dates';
+import { daysBetween, isIsoDate, todayIso } from './dates';
 import type { Athlete, Competition, Race, Season } from './model';
 
 export const SCHEMA_VERSION = 1;
@@ -18,6 +18,37 @@ export interface Backup extends AppData {
 
 export function createBackup(data: AppData, now = new Date()): Backup {
 	return { schemaVersion: SCHEMA_VERSION, exportedAt: now.toISOString(), ...data };
+}
+
+/** Safari darf die Daten nach 7 Tagen ohne Besuch löschen: spätestens dann soll ein Backup da sein */
+export const BACKUP_REMINDER_DAYS = 7;
+const DAY_MS = 86_400_000;
+
+/**
+ * Ob die App an ein Backup erinnern soll: Es gibt eine Änderung, die in keinem Backup steckt
+ * und mindestens 7 Tage alt ist. Frische Änderungen lösen noch nichts aus, sonst käme die
+ * Erinnerung nach jedem neuen Lauf.
+ */
+export function backupDue(
+	records: { updatedAt: string }[],
+	lastBackup: string | undefined,
+	now = new Date()
+): boolean {
+	const backedUp = lastBackup ? Date.parse(lastBackup) : -Infinity;
+	const limit = now.getTime() - BACKUP_REMINDER_DAYS * DAY_MS;
+	return records.some(({ updatedAt }) => {
+		const changed = Date.parse(updatedAt);
+		return changed > backedUp && changed <= limit;
+	});
+}
+
+/** 'Letztes Backup vor 12 Tagen', gezählt in Kalendertagen auf diesem Gerät */
+export function lastBackupText(lastBackup: string | undefined, now = new Date()): string {
+	if (!lastBackup) return 'Noch kein Backup';
+	const days = daysBetween(todayIso(new Date(lastBackup)), todayIso(now));
+	if (days <= 0) return 'Letztes Backup heute';
+	if (days === 1) return 'Letztes Backup gestern';
+	return `Letztes Backup vor ${days} Tagen`;
 }
 
 type Check = (value: unknown) => boolean;

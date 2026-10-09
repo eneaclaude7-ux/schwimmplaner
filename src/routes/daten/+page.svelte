@@ -3,9 +3,10 @@
 	import { tick } from 'svelte';
 	import LenexImport from '#lib/components/LenexImport.svelte';
 	import UndoToast from '#lib/components/UndoToast.svelte';
-	import { parseBackup } from '#lib/backup.ts';
+	import { lastBackupText, parseBackup } from '#lib/backup.ts';
 	import { racesToCsv } from '#lib/csv.ts';
 	import { db } from '#lib/db.ts';
+	import { downloadBackup, saveFile } from '#lib/download.ts';
 	import { formatDate, isIsoDate, todayIso } from '#lib/dates.ts';
 	import { storageErrorText } from '#lib/forms.ts';
 	import type { Season } from '#lib/model.ts';
@@ -27,6 +28,8 @@
 		races: await db.races.count()
 	}));
 	const current = $derived(seasonForDate($seasons ?? [], todayIso()));
+	// null heisst: geladen, aber noch nie ein Backup (undefined: lädt noch)
+	const lastBackup = liveQuery(async () => (await db.meta.get('lastBackup'))?.value ?? null);
 
 	/**
 	 * Meldungen stehen direkt beim Knopf, der sie auslöst, nicht oben auf der Seite:
@@ -112,20 +115,9 @@
 		}
 	}
 
-	// Export: Datei im Browser erzeugen, nichts geht an einen Server
-	function save(text: string, type: string, filename: string) {
-		const url = URL.createObjectURL(new Blob([text], { type }));
-		const link = document.createElement('a');
-		link.href = url;
-		link.download = filename;
-		link.click();
-		URL.revokeObjectURL(url);
-	}
-
 	async function download() {
 		try {
-			const backup = await exportAll();
-			save(JSON.stringify(backup, null, 2), 'application/json', `schwimmplaner-${todayIso()}.json`);
+			await downloadBackup();
 			notify('backup', 'Backup heruntergeladen.');
 		} catch (error) {
 			notify('backup', `Backup fehlgeschlagen: ${storageErrorText(error)}`);
@@ -135,7 +127,7 @@
 	async function downloadCsv() {
 		try {
 			const { races, competitions, seasons } = await exportAll();
-			save(
+			saveFile(
 				racesToCsv(races, competitions, seasons),
 				'text/csv;charset=utf-8',
 				`schwimmplaner-laeufe-${todayIso()}.csv`
@@ -227,6 +219,9 @@
 			)}){/if}. Lade regelmässig ein Backup herunter. Mit derselben Datei kannst du die Daten auf
 		ein anderes Gerät übertragen.
 	</p>
+	{#if $lastBackup !== undefined}
+		<p class="hint">{lastBackupText($lastBackup ?? undefined)} auf diesem Gerät.</p>
+	{/if}
 	{#if persisted === true}
 		<p class="hint">
 			Dauerhafter Speicher ist aktiv: Der Browser löscht deine Daten nicht von selbst.

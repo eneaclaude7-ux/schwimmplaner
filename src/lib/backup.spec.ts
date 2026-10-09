@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createBackup, parseBackup, type AppData } from './backup';
+import { backupDue, createBackup, lastBackupText, parseBackup, type AppData } from './backup';
 
 const t = '2026-10-07T20:00:00.000Z';
 const data: AppData = {
@@ -62,5 +62,42 @@ describe('Backup', () => {
 	it('lehnt Läufe ohne Wettkampf ab', () => {
 		const broken = { ...createBackup(data), competitions: [] };
 		expect(parseBackup(JSON.stringify(broken)).ok).toBe(false);
+	});
+});
+
+describe('Erinnerung ans Backup', () => {
+	const now = new Date('2026-10-20T12:00:00.000Z');
+	const daysAgo = (days: number) => new Date(now.getTime() - days * 86_400_000).toISOString();
+
+	it('erinnert nicht, solange es keine Daten gibt', () => {
+		expect(backupDue([], undefined, now)).toBe(false);
+	});
+
+	it('erinnert, wenn eine Änderung 7 Tage alt ist und es kein Backup gibt', () => {
+		expect(backupDue([{ updatedAt: daysAgo(7) }], undefined, now)).toBe(true);
+	});
+
+	it('wartet bei frischen Änderungen, damit nicht jeder Eintrag eine Meldung bringt', () => {
+		expect(backupDue([{ updatedAt: daysAgo(6) }], undefined, now)).toBe(false);
+	});
+
+	it('erinnert nicht, wenn das Backup nach der Änderung kam', () => {
+		expect(backupDue([{ updatedAt: daysAgo(10) }], daysAgo(9), now)).toBe(false);
+	});
+
+	it('erinnert, wenn eine Änderung nach dem Backup 7 Tage alt ist', () => {
+		const records = [{ updatedAt: daysAgo(20) }, { updatedAt: daysAgo(8) }];
+		expect(backupDue(records, daysAgo(15), now)).toBe(true);
+	});
+
+	it('wartet nach einem alten Backup, bis die neue Änderung 7 Tage alt ist', () => {
+		expect(backupDue([{ updatedAt: daysAgo(1) }], daysAgo(30), now)).toBe(false);
+	});
+
+	it('beschreibt das Alter des letzten Backups', () => {
+		expect(lastBackupText(undefined, now)).toBe('Noch kein Backup');
+		expect(lastBackupText(daysAgo(0), now)).toBe('Letztes Backup heute');
+		expect(lastBackupText(daysAgo(1), now)).toBe('Letztes Backup gestern');
+		expect(lastBackupText(daysAgo(12), now)).toBe('Letztes Backup vor 12 Tagen');
 	});
 });

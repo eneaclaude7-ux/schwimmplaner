@@ -1,11 +1,15 @@
 <script lang="ts">
 	// Übersicht: das Wichtigste auf einen Blick, wie die Resultat-Tafel in der Halle.
 	import { liveQuery } from 'dexie';
+	import { tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import Icon from '#lib/components/Icon.svelte';
 	import Loading from '#lib/components/Loading.svelte';
+	import { backupDue, lastBackupText } from '#lib/backup.ts';
 	import { monthWeeks, monthOf, nextCompetition, nextDeadline } from '#lib/calendar.ts';
 	import { db } from '#lib/db.ts';
+	import { downloadBackup } from '#lib/download.ts';
+	import { storageErrorText } from '#lib/forms.ts';
 	import { daysBetween, formatDate, formatShortDate, relativeDays, todayIso } from '#lib/dates.ts';
 	import { COURSE_LABEL, raceLabel, type Course } from '#lib/model.ts';
 	import { seasonForDate } from '#lib/seasons.ts';
@@ -15,9 +19,32 @@
 	const data = liveQuery(async () => ({
 		competitions: await db.competitions.orderBy('startDate').toArray(),
 		races: await db.races.toArray(),
-		seasons: await db.seasons.toArray()
+		seasons: await db.seasons.toArray(),
+		lastBackup: (await db.meta.get('lastBackup'))?.value
 	}));
 	const today = todayIso();
+
+	// Die Daten liegen nur auf diesem Gerät: nach 7 Tagen ohne Backup daran erinnern
+	const remind = $derived(
+		$data
+			? backupDue([...$data.competitions, ...$data.races, ...$data.seasons], $data.lastBackup)
+			: false
+	);
+	let backupMessage = $state('');
+	let backupStatus = $state<HTMLElement>();
+
+	async function backupNow() {
+		try {
+			await downloadBackup();
+			backupMessage =
+				'Backup heruntergeladen. Leg die Datei an einen sicheren Ort, etwa in die Cloud oder auf den Computer.';
+		} catch (error) {
+			backupMessage = `Backup fehlgeschlagen: ${storageErrorText(error)}`;
+		}
+		// Der Hinweis mit dem Knopf verschwindet: Fokus auf die Rückmeldung
+		await tick();
+		backupStatus?.focus();
+	}
 
 	const histories = $derived(
 		$data ? buildHistories($data.races, $data.competitions, $data.seasons) : []
@@ -76,6 +103,24 @@
 		</div>
 	</div>
 {:else}
+	{#if remind}
+		<section class="reminder" aria-labelledby="backup-reminder">
+			<span class="reminder-icon"><Icon name="alert-triangle" size={22} /></span>
+			<div>
+				<h2 id="backup-reminder">Zeit für ein Backup</h2>
+				<p>
+					{#if $data.lastBackup}
+						{lastBackupText($data.lastBackup)}, seither hast du Neues erfasst.
+					{:else}
+						Deine Daten liegen nur auf diesem Gerät, und es gibt noch kein Backup.
+					{/if}
+				</p>
+			</div>
+			<button class="button small" type="button" onclick={backupNow}>Backup herunterladen</button>
+		</section>
+	{/if}
+	<p class="status" tabindex="-1" aria-live="polite" bind:this={backupStatus}>{backupMessage}</p>
+
 	<!-- Die Resultat-Tafel: Saisonbestzeiten der gewählten Bahnlänge -->
 	<section class="board scoreboard" aria-labelledby="tafel">
 		<div class="board-head">
@@ -529,6 +574,49 @@
 
 	.mark.lcm {
 		background: var(--color-lcm);
+	}
+
+	/* Erinnerung ans Backup: ruhig, aber vor der Tafel, weil ohne Backup alles verloren gehen kann */
+	.reminder {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		gap: var(--space-2) var(--space-3);
+		margin-top: var(--space-6);
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--color-warning);
+		border-radius: var(--radius-lg);
+	}
+
+	.reminder > div {
+		flex: 1 1 14rem;
+	}
+
+	.reminder h2 {
+		margin: 0;
+		color: var(--color-warning);
+		font-size: var(--text-lg);
+	}
+
+	.reminder p {
+		margin: var(--space-1) 0 0;
+	}
+
+	.reminder-icon {
+		display: inline-flex;
+		color: var(--color-warning);
+	}
+
+	.reminder .button {
+		align-self: center;
+	}
+
+	.status {
+		margin: var(--space-3) 0 0;
+	}
+
+	.status:empty {
+		display: none;
 	}
 
 	.welcome {

@@ -154,7 +154,16 @@ export async function importAll(backup: Backup): Promise<void> {
 		await db.competitions.bulkAdd(backup.competitions);
 		await db.races.bulkAdd(backup.races);
 		await db.seasons.bulkAdd(backup.seasons);
+		// Die eingelesenen Daten stecken schon in dieser Datei: keine Erinnerung ans Backup
+		if (!Number.isNaN(Date.parse(backup.exportedAt))) {
+			await db.meta.put({ key: 'lastBackup', value: backup.exportedAt });
+		}
 	});
+}
+
+/** Merkt sich, wann zuletzt ein Backup heruntergeladen wurde */
+export async function setLastBackup(at: string): Promise<void> {
+	await db.meta.put({ key: 'lastBackup', value: at });
 }
 
 export async function deleteAllData(): Promise<void> {
