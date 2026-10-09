@@ -1,10 +1,10 @@
 // Erzeugt die App-Icons (PNG) ohne fremde Bibliotheken. Gleiche Bildmarke wie src/lib/assets/favicon.svg:
-// "SP" in Leuchtsegmenten wie auf der Anzeigetafel, darunter die Welle.
+// Delfin von der Seite, die Arme tauchen ein, an den Händen spritzt eine Wasserkrone.
 // Eigenes Werk, darum keine Lizenzfragen. Aufruf: node scripts/generate-icons.mjs
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const BOARD = [16, 20, 24]; // #101418, --color-board
+const TILE = [27, 34, 40]; // #1b2228, --color-board-tile
 const LED = [245, 197, 24]; // #f5c518, --color-led
 const WAVE = [31, 162, 184]; // #1fa2b8, --color-wave
 
@@ -51,29 +51,7 @@ function png(size, pixel) {
 	]);
 }
 
-// Die Bildmarke aus favicon.svg im 64er-Raster: zehn abgerundete Segmente und eine Wellenlinie
-const SEGMENTS = [
-	[14, 13, 12, 5],
-	[11, 15, 5, 13],
-	[14, 27.5, 12, 5],
-	[24, 31, 5, 13],
-	[14, 41, 12, 5],
-	[38, 13, 12, 5],
-	[35, 15, 5, 13],
-	[48, 15, 5, 13],
-	[38, 27.5, 12, 5],
-	[35, 31, 5, 13]
-];
-const CORNER = 1.5;
-
-function inRoundedRect(x, y, [rx, ry, w, h]) {
-	if (x < rx || x > rx + w || y < ry || y > ry + h) return false;
-	// Abstand zur Ecke nur prüfen, wenn der Punkt im Eckbereich liegt
-	const cx = Math.min(Math.max(x, rx + CORNER), rx + w - CORNER);
-	const cy = Math.min(Math.max(y, ry + CORNER), ry + h - CORNER);
-	return Math.hypot(x - cx, y - cy) <= CORNER;
-}
-
+// Die Bildmarke aus favicon.svg im 64er-Raster, in Zeichenreihenfolge (spätere Formen liegen oben)
 function bezier(p0, p1, p2, p3, steps = 24) {
 	return Array.from({ length: steps + 1 }, (_, i) => {
 		const t = i / steps;
@@ -83,17 +61,42 @@ function bezier(p0, p1, p2, p3, steps = 24) {
 		);
 	});
 }
-const WAVE_LINE = [
-	...bezier([11, 54], [17, 50], [23, 50], [29, 54]),
-	...bezier([29, 54], [35, 58], [41, 58], [53, 52])
-];
-const WAVE_HALF = 1.75; // halbe Linienbreite (3.5 im SVG)
 
-function distanceToWave(x, y) {
+const SHAPES = [
+	// Wasserlinie
+	{
+		line: [
+			...bezier([4, 50], [11, 46], [17, 46], [24, 50]),
+			...bezier([24, 50], [31, 54], [37, 54], [44, 50]),
+			...bezier([44, 50], [49, 47], [54, 47], [60, 49])
+		],
+		half: 2,
+		color: WAVE
+	},
+	// Körperbogen, Arme, Kopf
+	{ line: bezier([8, 45], [13, 30], [25, 19], [38, 24]), half: 3.5, color: LED },
+	{
+		line: [
+			[38, 24],
+			[52, 43]
+		],
+		half: 2.75,
+		color: LED
+	},
+	{ circle: [45, 21, 5.5], color: LED },
+	// Wasserkrone an den Händen und Tropfen
+	{ line: bezier([47.5, 45], [46, 42], [45.5, 39.5], [46.5, 37]), half: 1.2, color: WAVE },
+	{ line: bezier([57, 45], [59, 42.5], [60, 40], [59.5, 37]), half: 1.2, color: WAVE },
+	{ circle: [50, 35.5, 1.5], color: WAVE },
+	{ circle: [56, 34, 1.4], color: WAVE },
+	{ circle: [60, 33, 1.1], color: WAVE }
+];
+
+function distanceToLine(x, y, line) {
 	let best = Infinity;
-	for (let i = 1; i < WAVE_LINE.length; i++) {
-		const [ax, ay] = WAVE_LINE[i - 1];
-		const [bx, by] = WAVE_LINE[i];
+	for (let i = 1; i < line.length; i++) {
+		const [ax, ay] = line[i - 1];
+		const [bx, by] = line[i];
 		const dx = bx - ax;
 		const dy = by - ay;
 		// Zwei Kurvenstücke teilen sich einen Punkt: Segment der Länge null überspringen (sonst NaN)
@@ -104,12 +107,23 @@ function distanceToWave(x, y) {
 	return best;
 }
 
+function colorAt(x, y) {
+	let color = TILE;
+	for (const shape of SHAPES) {
+		const hit = shape.circle
+			? Math.hypot(x - shape.circle[0], y - shape.circle[1]) <= shape.circle[2]
+			: distanceToLine(x, y, shape.line) <= shape.half;
+		if (hit) color = shape.color;
+	}
+	return color;
+}
+
 /**
  * Ein Pixel des Icons. Der Hintergrund füllt das ganze Quadrat (das System rundet die Ecken selbst ab),
  * die Bildmarke sitzt verkleinert in der Mitte, damit "maskable" Icons beim Zuschneiden nichts verlieren.
  */
 function mark(u, v, size) {
-	const SCALE = 0.8; // Anteil der Bildmarke an der Icon-Breite
+	const SCALE = 0.84; // Anteil der Bildmarke an der Icon-Breite
 	let r = 0;
 	let g = 0;
 	let b = 0;
@@ -118,14 +132,13 @@ function mark(u, v, size) {
 		for (let sx = 0; sx < SAMPLES; sx++) {
 			const pu = u + (sx + 0.5 - SAMPLES / 2) / (SAMPLES * size);
 			const pv = v + (sy + 0.5 - SAMPLES / 2) / (SAMPLES * size);
-			const x = ((pu - 0.5) / SCALE + 0.5) * 64;
-			const y = ((pv - 0.5) / SCALE + 0.5) * 64;
-			let color = BOARD;
-			if (SEGMENTS.some((seg) => inRoundedRect(x, y, seg))) color = LED;
-			else if (distanceToWave(x, y) <= WAVE_HALF) color = WAVE;
-			r += color[0];
-			g += color[1];
-			b += color[2];
+			const [cr, cg, cb] = colorAt(
+				((pu - 0.5) / SCALE + 0.5) * 64,
+				((pv - 0.5) / SCALE + 0.5) * 64
+			);
+			r += cr;
+			g += cg;
+			b += cb;
 		}
 	}
 	const n = SAMPLES * SAMPLES;
