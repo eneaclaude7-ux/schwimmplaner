@@ -21,7 +21,10 @@ const ASSETS = [
 self.addEventListener('install', (event) => {
 	async function addFilesToCache() {
 		const cache = await caches.open(CACHE);
-		await cache.addAll([...new Set([APP_SHELL, ...ASSETS])]);
+		// Am Browser-Cache vorbei laden: GitHub Pages erlaubt ihn 10 Minuten lang,
+		// sonst landen nach einem Deploy die alten Seiten im neuen Cache
+		const urls = [...new Set([APP_SHELL, ...ASSETS])];
+		await cache.addAll(urls.map((url) => new Request(url, { cache: 'reload' })));
 	}
 	event.waitUntil(addFilesToCache());
 });
