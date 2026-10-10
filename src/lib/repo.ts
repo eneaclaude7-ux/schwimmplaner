@@ -97,8 +97,12 @@ export async function saveImport(plan: ImportPlan): Promise<Id> {
 				createdAt: now(),
 				updatedAt: now()
 			});
-		} else if (plan.extendTo) {
-			await db.competitions.update(competitionId, { endDate: plan.extendTo, updatedAt: now() });
+		} else if (plan.extendTo || plan.addDeadline) {
+			await db.competitions.update(competitionId, {
+				...(plan.extendTo && { endDate: plan.extendTo }),
+				...(plan.addDeadline && { entryDeadline: plan.addDeadline }),
+				updatedAt: now()
+			});
 		}
 
 		for (const { race, action, existingId } of plan.races) {

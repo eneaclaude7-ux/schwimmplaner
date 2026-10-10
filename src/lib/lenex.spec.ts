@@ -139,11 +139,11 @@ describe('parseLenex', () => {
 		});
 	});
 
-	it('erkennt Ausschreibungen und Meldelisten ohne Resultate', () => {
-		const entriesOnly = xml.replace(/<RESULTS>[\s\S]*?<\/RESULTS>/g, '');
-		const result = parseLenex(entriesOnly);
-		expect(result.ok).toBe(false);
-		if (!result.ok) expect(result.error).toMatch(/keine Resultate/);
+	it('nimmt in einer Resultatdatei keine Meldungen, auch nicht ohne Resultat', () => {
+		// Tom hat nur eine Meldung: Er ist wohl nicht angetreten, ein geplanter Lauf wäre falsch
+		const meet = meetOf(xml);
+		expect(meet.kind).toBe('results');
+		expect(meet.athletes.map((a) => a.name)).not.toContain('Probe, Tom');
 	});
 
 	it('lehnt Yards und andere Becken ab', () => {
@@ -162,6 +162,110 @@ describe('parseLenex', () => {
 		const max = meetOf(mixed).athletes.find((a) => a.name === 'Muster, Max')!;
 		expect(max.races.map((r) => r.date)).toEqual(['2026-11-14', '2026-11-14']);
 		expect(max.skipped).toHaveLength(4);
+	});
+});
+
+describe('Meldelisten und Ausschreibungen', () => {
+	const entriesXml = readFileSync(join(import.meta.dirname, 'fixtures/meldeliste.lef'), 'utf-8');
+	const meet = meetOf(entriesXml);
+	const max = meet.athletes.find((a) => a.name === 'Muster, Max')!;
+
+	it('erkennt eine Meldeliste und zeigt nur gemeldete Athleten', () => {
+		expect(meet.kind).toBe('entries');
+		expect(meet.athletes.map((a) => a.name)).toEqual(['Beispiel, Lea', 'Muster, Max']);
+		expect(meet.competition).toMatchObject({
+			name: 'Wintermeeting Musterstadt',
+			startDate: '2026-12-12',
+			endDate: '2026-12-13',
+			entryDeadline: '2026-12-01',
+			course: 'LCM'
+		});
+	});
+
+	it('macht aus Meldungen geplante Läufe, ohne Meldezeit als Zielzeit', () => {
+		expect(max.races).toEqual([
+			{ stroke: 'BREAST', distance: 100, date: '2026-12-12', status: 'planned', splits: [] },
+			{ stroke: 'FREE', distance: 50, date: '2026-12-12', status: 'planned', splits: [] },
+			{ stroke: 'MEDLEY', distance: 200, date: '2026-12-13', status: 'planned', splits: [] }
+		]);
+	});
+
+	it('überspringt abgemeldete, abgelehnte und unbekannte Strecken', () => {
+		expect(max.skipped).toEqual([
+			{ label: '25 m Delfin', reason: 'Diese Strecke kennt der Schwimmplaner nicht.' },
+			{ label: '100 m Rücken', reason: 'Die Meldung wurde zurückgezogen.' },
+			{ label: '200 m Brust', reason: 'Die Meldung wurde abgelehnt.' }
+		]);
+	});
+
+	it('liest eine Ausschreibung ohne Athleten als Wettkampf', () => {
+		const invitation = entriesXml.replace(/<CLUBS>[\s\S]*<\/CLUBS>/, '');
+		const result = parseLenex(invitation);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.meets[0].kind).toBe('invitation');
+		expect(result.meets[0].athletes).toEqual([]);
+		expect(result.meets[0].competition.entryDeadline).toBe('2026-12-01');
+	});
+
+	it('plant Meldungen als neue Läufe, schon erfasste Strecken zählen als erfasst', () => {
+		const t = '2026-10-08T20:00:00.000Z';
+		const existing: Competition = {
+			...meet.competition,
+			id: 'c9',
+			createdAt: t,
+			updatedAt: t
+		};
+		const races: Race[] = [
+			{
+				id: 'schon-geplant',
+				athleteId: 'a1',
+				competitionId: 'c9',
+				date: '2026-12-12',
+				stroke: 'BREAST',
+				distance: 100,
+				target: 6950,
+				status: 'planned',
+				splits: [],
+				createdAt: t,
+				updatedAt: t
+			},
+			{
+				id: 'schon-geschwommen',
+				athleteId: 'a1',
+				competitionId: 'c9',
+				date: '2026-12-13',
+				stroke: 'MEDLEY',
+				distance: 200,
+				status: 'finished',
+				result: 15500,
+				splits: [],
+				createdAt: t,
+				updatedAt: t
+			}
+		];
+		const result = planImport(meet, max, [existing], races);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.plan.races.map((r) => [r.race.stroke, r.action])).toEqual([
+			['BREAST', 'duplicate'],
+			['FREE', 'new'],
+			['MEDLEY', 'duplicate']
+		]);
+	});
+
+	it('plant eine Ausschreibung ohne Läufe und ergänzt den fehlenden Meldeschluss', () => {
+		const t = '2026-10-08T20:00:00.000Z';
+		const fresh = planImport(meet, undefined, [], []);
+		expect(fresh.ok && fresh.plan.races).toEqual([]);
+		expect(fresh.ok && fresh.plan.existing).toBeUndefined();
+
+		const { entryDeadline: _, ...withoutDeadline } = meet.competition;
+		const known: Competition = { ...withoutDeadline, id: 'c9', createdAt: t, updatedAt: t };
+		const later = planImport(meet, undefined, [known], []);
+		expect(later.ok && later.plan.addDeadline).toBe('2026-12-01');
+		const complete = planImport(meet, undefined, [{ ...known, entryDeadline: '2026-11-30' }], []);
+		expect(complete.ok && complete.plan.addDeadline).toBeUndefined();
 	});
 });
 

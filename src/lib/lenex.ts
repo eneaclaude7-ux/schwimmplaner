@@ -1,5 +1,5 @@
-// Lenex-Import: liest Resultatdateien ganz im Browser, nichts wird hochgeladen.
-// .lef ist XML, .lxf dasselbe als ZIP. Die Datei enthält alle Teilnehmenden eines Wettkampfs,
+// Lenex-Import: liest Resultatdateien, Meldelisten und Ausschreibungen ganz im Browser,
+// nichts wird hochgeladen. .lef ist XML, .lxf dasselbe als ZIP. Die Datei enthält alle Teilnehmenden eines Wettkampfs,
 // gespeichert werden nur die Läufe des gewählten Athleten, ohne Name, Jahrgang und Verein
 // (Datensparsamkeit, README Punkt 1). Format: Lenex 3.0, siehe docs/01-datenquellen-bericht.md
 import { unzipSync } from 'fflate';
@@ -41,9 +41,16 @@ export interface LenexAthlete {
 	skipped: SkippedResult[];
 }
 
+/**
+ * Art der Datei: Resultate nach dem Wettkampf, Meldeliste davor (geplante Läufe)
+ * oder Ausschreibung (nur der Wettkampf, ohne Athleten)
+ */
+export type LenexKind = 'results' | 'entries' | 'invitation';
+
 export interface LenexMeet {
 	competition: CompetitionValue;
-	/** nur Athleten mit mindestens einem Resultat, nach Name sortiert */
+	kind: LenexKind;
+	/** nur Athleten mit mindestens einem Resultat (bzw. einer Meldung), nach Name sortiert */
 	athletes: LenexAthlete[];
 }
 
@@ -175,12 +182,6 @@ export function parseLenex(xml: string): LenexResult {
 		meets.push(result.meet);
 	}
 	if (meets.length === 0) return { ok: false, error: 'Die Datei enthält keinen Wettkampf.' };
-	if (meets.every((m) => m.athletes.length === 0)) {
-		return {
-			ok: false,
-			error: 'Die Datei enthält keine Resultate. Ist es eine Ausschreibung oder eine Meldeliste?'
-		};
-	}
 	return { ok: true, meets };
 }
 
@@ -236,15 +237,22 @@ function parseMeet(meet: Element): { ok: true; meet: LenexMeet } | { ok: false; 
 		course
 	};
 
+	// Resultatdateien enthalten oft auch die Meldungen. Gibt es Resultate, zählen Meldungen nicht:
+	// Wer nur gemeldet ist, ist wohl nicht angetreten, und ein geplanter Lauf wäre falsch.
+	const hasResults = children(meet, 'CLUBS/CLUB/ATHLETES/ATHLETE/RESULTS/RESULT').length > 0;
 	const athletes: LenexAthlete[] = [];
 	for (const club of children(meet, 'CLUBS/CLUB')) {
 		for (const athlete of children(club, 'ATHLETES/ATHLETE')) {
-			const results = children(athlete, 'RESULTS/RESULT');
-			if (results.length === 0) continue;
+			const items = hasResults
+				? children(athlete, 'RESULTS/RESULT')
+				: children(athlete, 'ENTRIES/ENTRY');
+			if (items.length === 0) continue;
 			const races: ImportedRace[] = [];
 			const skipped: SkippedResult[] = [];
-			for (const result of results) {
-				const mapped = mapResult(result, events, course);
+			for (const item of items) {
+				const mapped = hasResults
+					? mapResult(item, events, course)
+					: mapEntry(item, events, course);
 				if ('reason' in mapped) skipped.push(mapped);
 				else races.push(mapped);
 			}
@@ -265,16 +273,17 @@ function parseMeet(meet: Element): { ok: true; meet: LenexMeet } | { ok: false; 
 		}
 	}
 	athletes.sort((a, b) => a.name.localeCompare(b.name, 'de'));
-	return { ok: true, meet: { competition, athletes } };
+	const kind: LenexKind = hasResults ? 'results' : athletes.length > 0 ? 'entries' : 'invitation';
+	return { ok: true, meet: { competition, kind, athletes } };
 }
 
-/** Ein RESULT wird zu einem Lauf, oder es wird mit Grund übersprungen */
-function mapResult(
-	result: Element,
+/** Prüft den Lauf, auf den ein RESULT oder ENTRY zeigt. Gibt Lage und Bezeichnung zurück. */
+function checkEvent(
+	item: Element,
 	events: Map<string, LenexEvent>,
 	course: Course
-): ImportedRace | SkippedResult {
-	const event = events.get(attr(result, 'eventid'));
+): { event: LenexEvent; stroke: Stroke; label: string } | SkippedResult {
+	const event = events.get(attr(item, 'eventid'));
 	if (!event) return { label: 'Unbekannter Lauf', reason: 'Der Lauf fehlt im Programm.' };
 
 	const stroke = mapStroke(event.stroke);
@@ -290,6 +299,44 @@ function mapResult(
 	if (!allowedDistances(stroke, course).includes(event.distance)) {
 		return { label, reason: 'Diese Strecke kennt der Schwimmplaner nicht.' };
 	}
+	return { event, stroke, label };
+}
+
+/**
+ * Ein ENTRY (Meldung) wird zu einem geplanten Lauf. Die Meldezeit ist die bisherige Bestzeit
+ * für die Einteilung, kein Ziel: Sie wird nicht als Zielzeit übernommen.
+ */
+function mapEntry(
+	entry: Element,
+	events: Map<string, LenexEvent>,
+	course: Course
+): ImportedRace | SkippedResult {
+	const checked = checkEvent(entry, events, course);
+	if ('reason' in checked) return checked;
+	const { event, stroke, label } = checked;
+	switch (attr(entry, 'status')) {
+		case '':
+		case 'EXH':
+			return { stroke, distance: event.distance, date: event.date, status: 'planned', splits: [] };
+		case 'WDR':
+		case 'SICK':
+			return { label, reason: 'Die Meldung wurde zurückgezogen.' };
+		case 'RJC':
+			return { label, reason: 'Die Meldung wurde abgelehnt.' };
+		default:
+			return { label, reason: `Unbekannter Status "${attr(entry, 'status')}".` };
+	}
+}
+
+/** Ein RESULT wird zu einem Lauf, oder es wird mit Grund übersprungen */
+function mapResult(
+	result: Element,
+	events: Map<string, LenexEvent>,
+	course: Course
+): ImportedRace | SkippedResult {
+	const checked = checkEvent(result, events, course);
+	if ('reason' in checked) return checked;
+	const { event, stroke, label } = checked;
 
 	const status = mapStatus(attr(result, 'status'));
 	if (!status) return { label, reason: `Unbekannter Status "${attr(result, 'status')}".` };
@@ -349,6 +396,8 @@ export interface ImportPlan {
 	competition: CompetitionValue;
 	/** neues Enddatum, wenn der erfasste Wettkampf kürzer ist als in der Datei */
 	extendTo?: IsoDate;
+	/** Meldeschluss aus der Datei, wenn er beim erfassten Wettkampf fehlt */
+	addDeadline?: IsoDate;
 	races: PlannedRace[];
 }
 
@@ -366,10 +415,12 @@ export function isSameCompetition(
  * Ist der Wettkampf schon erfasst, kommen die Läufe dorthin. Ein Lauf mit gleicher Strecke,
  * gleichem Status und gleicher Endzeit gilt als schon erfasst, so lässt sich eine Datei
  * auch zweimal einlesen. Ein geplanter Lauf derselben Strecke bekommt das Resultat.
+ * Eine Meldung für eine schon erfasste Strecke bringt nichts Neues.
+ * Ohne Athlet (Ausschreibung) wird nur der Wettkampf geplant.
  */
 export function planImport(
 	meet: LenexMeet,
-	athlete: LenexAthlete,
+	athlete: LenexAthlete | undefined,
 	competitions: Competition[],
 	races: Race[]
 ): { ok: true; plan: ImportPlan } | { ok: false; error: string } {
@@ -389,8 +440,12 @@ export function planImport(
 		const index = open.findIndex(match);
 		return index >= 0 ? open.splice(index, 1)[0] : undefined;
 	};
-	const planned: PlannedRace[] = athlete.races.map((race) => {
+	const fromFile = athlete?.races ?? [];
+	const planned: PlannedRace[] = fromFile.map((race) => {
 		const sameEvent = (r: Race) => r.stroke === race.stroke && r.distance === race.distance;
+		if (race.status === 'planned') {
+			return { race, action: take(sameEvent) ? 'duplicate' : 'new' };
+		}
 		if (take((r) => sameEvent(r) && r.status === race.status && r.result === race.result)) {
 			return { race, action: 'duplicate' };
 		}
@@ -402,16 +457,18 @@ export function planImport(
 	// Dauert der Wettkampf in der Datei länger als erfasst, wird das Enddatum verschoben
 	const lastDay = existing?.endDate ?? existing?.startDate ?? '';
 	const latest =
-		athlete.races
+		fromFile
 			.map((r) => r.date)
 			.sort()
 			.at(-1) ?? '';
+	const deadline = meet.competition.entryDeadline;
 	return {
 		ok: true,
 		plan: {
 			existing,
 			competition: meet.competition,
 			extendTo: existing && latest > lastDay ? latest : undefined,
+			addDeadline: existing && !existing.entryDeadline && deadline ? deadline : undefined,
 			races: planned
 		}
 	};

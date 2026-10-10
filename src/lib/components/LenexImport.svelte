@@ -49,13 +49,30 @@
 		competitions: await db.competitions.toArray(),
 		races: await db.races.toArray()
 	}));
+	// Eine Ausschreibung hat keine Athleten: Dann wird nur der Wettkampf geplant
 	const planned = $derived(
-		meet && athlete && $stored
+		meet && $stored && (athlete || meet.kind === 'invitation')
 			? planImport(meet, athlete, $stored.competitions, $stored.races)
 			: undefined
 	);
 	const toSave = $derived(
 		planned?.ok ? planned.plan.races.filter((r) => r.action !== 'duplicate').length : 0
+	);
+	/** Wettkampf neu, länger oder mit Meldeschluss: Das lohnt sich auch ohne neue Läufe */
+	const changesCompetition = $derived(
+		planned?.ok
+			? !planned.plan.existing || !!planned.plan.extendTo || !!planned.plan.addDeadline
+			: false
+	);
+	const canSave = $derived(toSave > 0 || changesCompetition);
+	const saveLabel = $derived(
+		toSave > 0
+			? `${count(toSave, 'Lauf', 'Läufe')} speichern`
+			: !changesCompetition
+				? 'Speichern'
+				: planned?.ok && planned.plan.existing
+					? 'Wettkampf ergänzen'
+					: 'Wettkampf eintragen'
 	);
 
 	function clear() {
@@ -84,10 +101,19 @@
 		}
 		meets = result.meets;
 		meetIndex = 0;
-		const first = result.meets[0];
-		message =
-			`Datei gelesen: ${first.competition.name}, ` +
-			`${count(first.athletes.length, 'Athlet', 'Athleten')} mit Resultaten. Bitte wählen.`;
+		message = readMessage(result.meets[0]);
+	}
+
+	function readMessage(m: LenexMeet): string {
+		const athletes = count(m.athletes.length, 'Athlet', 'Athleten');
+		switch (m.kind) {
+			case 'results':
+				return `Datei gelesen: ${m.competition.name}, ${athletes} mit Resultaten. Bitte wählen.`;
+			case 'entries':
+				return `Meldeliste gelesen: ${m.competition.name}, ${athletes} gemeldet. Bitte wählen.`;
+			case 'invitation':
+				return `Ausschreibung gelesen: ${m.competition.name}. Sie enthält keine Läufe, nur den Wettkampf.`;
+		}
 	}
 
 	async function save() {
@@ -96,9 +122,15 @@
 		try {
 			const id = await saveImport(planned.plan);
 			const n = toSave;
+			const isNew = !planned.plan.existing;
 			clear();
 			savedId = id;
-			message = `${count(n, 'Lauf', 'Läufe')} gespeichert.`;
+			message =
+				n > 0
+					? `${count(n, 'Lauf', 'Läufe')} gespeichert.`
+					: isNew
+						? 'Wettkampf eingetragen.'
+						: 'Wettkampf ergänzt.';
 			// Die Knöpfe verschwinden: Fokus auf die Meldung, sonst landet er im Nichts
 			await tick();
 			document.getElementById('lenex-status')?.focus();
@@ -124,7 +156,8 @@
 <p>
 	Lenex-Dateien (.lxf oder .lef) enthalten die Resultate eines ganzen Wettkampfs, mit
 	Zwischenzeiten, wenn sie elektronisch gemessen wurden. Du bekommst sie oft beim Veranstalter oder
-	beim Trainer.
+	beim Trainer. Auch Meldelisten und Ausschreibungen gehen: Gemeldete Läufe kommen als geplant in
+	den Kalender, eine Ausschreibung trägt den Wettkampf mit Meldeschluss ein.
 </p>
 <p class="hint">
 	Die Datei wird nur auf diesem Gerät gelesen. Du wählst, wessen Resultate du übernehmen willst.
@@ -175,41 +208,47 @@
 		</div>
 	{/if}
 
-	<div class="grid-2">
-		<div class="field">
-			<label for="lenex-search">Name oder Verein suchen</label>
-			<input id="lenex-search" type="search" bind:value={search} autocomplete="off" />
-			<p class="visually-hidden" aria-live="polite">
-				{search.trim() ? `${count(athletes.length, 'Treffer', 'Treffer')}` : ''}
-			</p>
-		</div>
-		<div class="field">
-			<label for="lenex-athlete">Athlet oder Athletin</label>
-			<select id="lenex-athlete" bind:value={athleteKey}>
-				<option value="" disabled>
-					Bitte wählen ({athletes.length} von {meet.athletes.length})
-				</option>
-				{#each athletes as a (a.key)}
-					<option value={a.key}>
-						{a.name}{a.birthYear ? ` (${a.birthYear})` : ''}{a.club ? `, ${a.club}` : ''}
+	{#if meet.athletes.length > 0}
+		<div class="grid-2">
+			<div class="field">
+				<label for="lenex-search">Name oder Verein suchen</label>
+				<input id="lenex-search" type="search" bind:value={search} autocomplete="off" />
+				<p class="visually-hidden" aria-live="polite">
+					{search.trim() ? `${count(athletes.length, 'Treffer', 'Treffer')}` : ''}
+				</p>
+			</div>
+			<div class="field">
+				<label for="lenex-athlete">Athlet oder Athletin</label>
+				<select id="lenex-athlete" bind:value={athleteKey}>
+					<option value="" disabled>
+						Bitte wählen ({athletes.length} von {meet.athletes.length})
 					</option>
-				{/each}
-			</select>
+					{#each athletes as a (a.key)}
+						<option value={a.key}>
+							{a.name}{a.birthYear ? ` (${a.birthYear})` : ''}{a.club ? `, ${a.club}` : ''}
+						</option>
+					{/each}
+				</select>
+			</div>
 		</div>
-	</div>
+	{/if}
 
-	{#if athlete && planned && !planned.ok}
+	{#if planned && !planned.ok}
 		<p class="error">{planned.error}</p>
-	{:else if athlete && planned?.ok}
+	{:else if planned?.ok}
 		{@const plan = planned.plan}
 		<h3>Vorschau</h3>
 		<p>
 			<strong>{plan.competition.name}</strong>,
 			{formatDateRange(plan.competition.startDate, plan.competition.endDate)},
 			{plan.competition.location}, {COURSE_LABEL[plan.competition.course]}.
+			{#if plan.competition.entryDeadline}
+				Meldeschluss {formatDate(plan.competition.entryDeadline)}.
+			{/if}
 			{#if plan.existing}
-				Dieser Wettkampf ist schon erfasst, neue Läufe kommen dazu.
+				Dieser Wettkampf ist schon erfasst{#if toSave > 0}, neue Läufe kommen dazu{/if}.
 				{#if plan.extendTo}Er dauert neu bis {formatDate(plan.extendTo)}.{/if}
+				{#if plan.addDeadline}Der Meldeschluss wird ergänzt.{/if}
 			{:else}
 				Der Wettkampf wird neu angelegt.
 			{/if}
@@ -248,7 +287,7 @@
 			</div>
 		{/if}
 
-		{#if athlete.skipped.length > 0}
+		{#if athlete && athlete.skipped.length > 0}
 			<p>Nicht übernommen:</p>
 			<ul>
 				{#each athlete.skipped as skipped, i (i)}
@@ -260,14 +299,16 @@
 		<p>
 			{#if toSave > 0}
 				{count(toSave, 'Lauf wird', 'Läufe werden')} gespeichert.
+			{:else if changesCompetition}
+				Es kommen keine Läufe dazu, nur der Wettkampf.
 			{:else}
-				Es gibt nichts Neues zu speichern, alle Läufe sind schon erfasst.
+				Es gibt nichts Neues zu speichern, alles ist schon erfasst.
 			{/if}
 		</p>
 		{#if saveError}<p class="error" role="alert">{saveError}</p>{/if}
 		<div class="actions">
-			<button class="button" type="button" onclick={save} disabled={saving || toSave === 0}>
-				{count(toSave, 'Lauf', 'Läufe')} speichern
+			<button class="button" type="button" onclick={save} disabled={saving || !canSave}>
+				{saveLabel}
 			</button>
 			<button class="button secondary" type="button" onclick={cancel}>Abbrechen</button>
 		</div>

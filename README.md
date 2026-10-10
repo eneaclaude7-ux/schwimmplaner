@@ -4,7 +4,7 @@ Eine Web-App, mit der Nachwuchsschwimmer, Eltern und Trainer Wettkämpfe planen 
 
 **Positionierung:** Resultat-Plattformen zeigen, was war. Diese App zeigt, was als Nächstes kommt und was man aus einem Rennen lernt. Sie ist keine Resultatdatenbank.
 
-**Stand:** Phase 1, alle 7 Etappen fertig. Startseite ist die Übersicht (Saisonbestzeiten als Resultat-Tafel, nächster Start, Meldeschluss, letzte Resultate, diese Woche), der Kalender liegt unter `/kalender`. Wettkämpfe, Läufe und Saisons lassen sich erfassen, sichern und löschen. Die Seite "Auswertung" zeigt Bestzeit, Saisonbestzeit und Verbesserungen, getrennt nach Kurz- und Langbahn. Pro Strecke zeigt ein Liniendiagramm die Entwicklung. Zu jedem Lauf lassen sich Zwischenzeiten erfassen, mit Lap-Zeiten, Anteilen, Positive/Negative Split und Diagramm; zwei Rennen derselben Strecke lassen sich Abschnitt für Abschnitt vergleichen. Die App ist installierbar und läuft offline. Neu: Resultate aus einer Lenex-Datei einlesen (Seite "Daten"), siehe [Lenex-Import](#lenex-import).
+**Stand:** Phase 1, alle 7 Etappen fertig. Startseite ist die Übersicht (Saisonbestzeiten als Resultat-Tafel, nächster Start, Meldeschluss, letzte Resultate, diese Woche), der Kalender liegt unter `/kalender`. Wettkämpfe, Läufe und Saisons lassen sich erfassen, sichern und löschen. Die Seite "Auswertung" zeigt Bestzeit, Saisonbestzeit und Verbesserungen, getrennt nach Kurz- und Langbahn. Pro Strecke zeigt ein Liniendiagramm die Entwicklung. Zu jedem Lauf lassen sich Zwischenzeiten erfassen, mit Lap-Zeiten, Anteilen, Positive/Negative Split und Diagramm; zwei Rennen derselben Strecke lassen sich Abschnitt für Abschnitt vergleichen. Die App ist installierbar und läuft offline. Neu: Resultate, Meldelisten und Ausschreibungen aus einer Lenex-Datei einlesen (Seite "Daten"), siehe [Lenex-Import](#lenex-import).
 
 **App:** <https://eneaclaude7-ux.github.io/schwimmplaner/>
 
@@ -111,7 +111,13 @@ Stand: 8.10.2026. Keine Rechtsberatung. Alles mit **von Anwalt klären** muss vo
 
 ## Lenex-Import
 
-Seite "Daten", Abschnitt "Resultate einlesen (Lenex)". Code: [src/lib/lenex.ts](src/lib/lenex.ts).
+Seite "Daten", Abschnitt "Lenex-Datei einlesen". Code: [src/lib/lenex.ts](src/lib/lenex.ts).
+
+Drei Arten von Dateien gehen:
+
+- **Resultate** nach dem Wettkampf: Läufe mit Endzeit, Status und Zwischenzeiten.
+- **Meldeliste** vor dem Wettkampf: Die gemeldeten Läufe (`ENTRY`) werden als geplante Läufe angelegt. Die Meldezeit wird nicht übernommen; sie ist die bisherige Bestzeit für die Einteilung, keine Zielzeit. Zurückgezogene (`WDR`, `SICK`) und abgelehnte (`RJC`) Meldungen fallen weg. Enthält eine Datei Resultate, zählen ihre Meldungen nicht: Wer nur gemeldet ist, ist wohl nicht angetreten.
+- **Ausschreibung** ohne Athleten: Nur der Wettkampf wird eingetragen, mit Datum, Ort, Bahnlänge und Meldeschluss.
 
 1. Datei wählen: `.lef` (XML) oder `.lxf` (dasselbe als ZIP, entpackt mit fflate). Die Datei wird nur im Browser gelesen, nichts wird hochgeladen.
 2. Athlet wählen: Die Datei enthält alle Teilnehmenden. Name, Jahrgang und Verein stehen nur in der Auswahlliste und werden nicht gespeichert. Nach dem Speichern oder Abbrechen verwirft die App den ganzen Dateiinhalt.
@@ -131,11 +137,11 @@ Seite "Daten", Abschnitt "Resultate einlesen (Lenex)". Code: [src/lib/lenex.ts](
 | `DSQ` / `DNS`, `SICK`, `WDR` / `DNF`                  | disqualifiziert / nicht angetreten / aufgegeben, ohne Endzeit       |
 | `SPLIT` distance, swimtime                            | Zwischenzeiten, kumuliert wie in Lenex; ein Split im Ziel fällt weg |
 
-**Nicht übernommen** (die Vorschau nennt jeweils den Grund): Staffeln, Technik-Läufe, Strecken, die es im Schwimmplaner nicht gibt (z. B. 25 m), Läufe in einem Abschnitt mit anderer Bahnlänge, Yards und andere Becken, Meldungen (`ENTRY`) ohne Resultat.
+**Nicht übernommen** (die Vorschau nennt jeweils den Grund): Staffeln, Technik-Läufe, Strecken, die es im Schwimmplaner nicht gibt (z. B. 25 m), Läufe in einem Abschnitt mit anderer Bahnlänge, Yards und andere Becken, Meldungen in einer Resultatdatei.
 
-**Duplikate:** Gibt es schon einen Wettkampf mit gleichem Namen (ohne Gross/klein und Leerzeichen) und gleichem Startdatum, wird kein zweiter angelegt; die Läufe kommen dorthin. Ein Lauf mit gleicher Lage, Strecke, gleichem Status und gleicher Endzeit gilt als schon erfasst, darum lässt sich eine Datei auch zweimal einlesen. Ein geplanter Lauf derselben Strecke bekommt Resultat und Zwischenzeiten, die Zielzeit bleibt. Dauert der Wettkampf in der Datei länger als erfasst, wird das Enddatum verschoben. Gespeichert wird in einer Transaktion: alles oder nichts.
+**Duplikate:** Gibt es schon einen Wettkampf mit gleichem Namen (ohne Gross/klein und Leerzeichen) und gleichem Startdatum, wird kein zweiter angelegt; die Läufe kommen dorthin. Ein Lauf mit gleicher Lage, Strecke, gleichem Status und gleicher Endzeit gilt als schon erfasst, darum lässt sich eine Datei auch zweimal einlesen. Ein geplanter Lauf derselben Strecke bekommt Resultat und Zwischenzeiten, die Zielzeit bleibt. Eine Meldung für eine schon erfasste Strecke gilt als erfasst. Dauert der Wettkampf in der Datei länger als erfasst, wird das Enddatum verschoben; fehlt der Meldeschluss, wird er ergänzt. Gespeichert wird in einer Transaktion: alles oder nichts.
 
-**Getestet** ist der Import mit einer selbst geschriebenen Beispieldatei ([src/lib/fixtures/beispiel.lef](src/lib/fixtures/beispiel.lef)). Echte Dateien von Dritten kommen nicht ins öffentliche Repo. Offen: mit 3 bis 5 echten Lenex-Dateien eigener Wettkämpfe lokal prüfen (siehe [docs/01-datenquellen-bericht.md](docs/01-datenquellen-bericht.md), Abschnitt 5).
+**Getestet** ist der Import mit selbst geschriebenen Beispieldateien ([Resultate](src/lib/fixtures/beispiel.lef), [Meldeliste](src/lib/fixtures/meldeliste.lef); die Ausschreibung ist die Meldeliste ohne Vereine). Echte Dateien von Dritten kommen nicht ins öffentliche Repo. Offen: mit 3 bis 5 echten Lenex-Dateien eigener Wettkämpfe lokal prüfen (siehe [docs/01-datenquellen-bericht.md](docs/01-datenquellen-bericht.md), Abschnitt 5).
 
 ## Bekannte Grenzen von Phase 1
 

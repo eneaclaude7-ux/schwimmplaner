@@ -325,7 +325,7 @@
 </section>
 
 <section aria-labelledby="lenex">
-	<h2 id="lenex">Resultate einlesen (Lenex)</h2>
+	<h2 id="lenex">Lenex-Datei einlesen</h2>
 	<LenexImport />
 </section>
 
