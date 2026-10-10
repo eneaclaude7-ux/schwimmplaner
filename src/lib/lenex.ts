@@ -159,6 +159,8 @@ interface LenexEvent {
 	distance: number;
 	relay: boolean;
 	technique: string;
+	/** Name aus der Datei, z. B. "50 Delfin Beinschl Rü Lage" bei einer Lage ohne Lenex-Code */
+	styleName: string;
 }
 
 export function parseLenex(xml: string): LenexResult {
@@ -222,7 +224,8 @@ function parseMeet(meet: Element): { ok: true; meet: LenexMeet } | { ok: false; 
 				stroke: attr(style, 'stroke'),
 				distance: Number(attr(style, 'distance')),
 				relay: Number(attr(style, 'relaycount') || 1) > 1,
-				technique: attr(style, 'technique')
+				technique: attr(style, 'technique'),
+				styleName: attr(style, 'name')
 			});
 		}
 	}
@@ -249,12 +252,26 @@ function parseMeet(meet: Element): { ok: true; meet: LenexMeet } | { ok: false; 
 			if (items.length === 0) continue;
 			const races: ImportedRace[] = [];
 			const skipped: SkippedResult[] = [];
+			const seenEvents = new Set<string>();
 			for (const item of items) {
 				const mapped = hasResults
 					? mapResult(item, events, course)
 					: mapEntry(item, events, course);
-				if ('reason' in mapped) skipped.push(mapped);
-				else races.push(mapped);
+				if ('reason' in mapped) {
+					skipped.push(mapped);
+					continue;
+				}
+				// Der Team Manager exportiert manche Meldungen doppelt: pro Lauf nur ein geplanter Lauf
+				const eventId = attr(item, 'eventid');
+				if (!hasResults && seenEvents.has(eventId)) {
+					skipped.push({
+						label: raceLabel(mapped),
+						reason: 'Doppelte Meldung, nur einmal übernommen.'
+					});
+					continue;
+				}
+				seenEvents.add(eventId);
+				races.push(mapped);
 			}
 			const birthYear = attr(athlete, 'birthdate').slice(0, 4);
 			athletes.push({
@@ -289,7 +306,7 @@ function checkEvent(
 	const stroke = mapStroke(event.stroke);
 	const label = stroke
 		? raceLabel({ distance: event.distance, stroke })
-		: `${event.distance} m ${event.stroke || 'unbekannte Lage'}`;
+		: event.styleName || `${event.distance} m, unbekannte Lage`;
 	if (event.relay) return { label, reason: 'Staffeln werden nicht übernommen.' };
 	if (!stroke) return { label, reason: 'Diese Lage kennt der Schwimmplaner nicht.' };
 	if (event.technique) return { label, reason: 'Technik-Läufe werden nicht übernommen.' };

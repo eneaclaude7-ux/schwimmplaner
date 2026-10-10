@@ -31,6 +31,9 @@
             <EVENT eventid="16" number="6" gender="X" round="TIM">
               <SWIMSTYLE distance="200" relaycount="1" stroke="BREAST" />
             </EVENT>
+            <EVENT eventid="17" number="7" gender="X" round="TIM">
+              <SWIMSTYLE distance="50" relaycount="1" swimstyleid="501" name="50 Beine Delfin" stroke="UNKNOWN" />
+            </EVENT>
           </EVENTS>
         </SESSION>
       </SESSIONS>
@@ -45,6 +48,9 @@
                 <ENTRY eventid="14" entrytime="00:02:35.00" />
                 <ENTRY eventid="15" entrytime="00:01:16.00" status="WDR" />
                 <ENTRY eventid="16" entrytime="00:02:40.00" status="RJC" />
+                <ENTRY eventid="17" entrytime="00:00:40.00" />
+                <!-- Der Team Manager exportiert manche Meldungen doppelt, mit anderer Zeit -->
+                <ENTRY eventid="11" entrytime="00:01:12.00" />
               </ENTRIES>
             </ATHLETE>
           </ATHLETES>

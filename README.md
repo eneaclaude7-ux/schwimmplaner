@@ -116,10 +116,10 @@ Seite "Daten", Abschnitt "Lenex-Datei einlesen". Code: [src/lib/lenex.ts](src/li
 Drei Arten von Dateien gehen:
 
 - **Resultate** nach dem Wettkampf: Läufe mit Endzeit, Status und Zwischenzeiten.
-- **Meldeliste** vor dem Wettkampf: Die gemeldeten Läufe (`ENTRY`) werden als geplante Läufe angelegt. Die Meldezeit wird nicht übernommen; sie ist die bisherige Bestzeit für die Einteilung, keine Zielzeit. Zurückgezogene (`WDR`, `SICK`) und abgelehnte (`RJC`) Meldungen fallen weg. Enthält eine Datei Resultate, zählen ihre Meldungen nicht: Wer nur gemeldet ist, ist wohl nicht angetreten.
+- **Meldeliste** vor dem Wettkampf: Die gemeldeten Läufe (`ENTRY`) werden als geplante Läufe angelegt. Die Meldezeit wird nicht übernommen; sie ist die bisherige Bestzeit für die Einteilung, keine Zielzeit. Zurückgezogene (`WDR`, `SICK`) und abgelehnte (`RJC`) Meldungen fallen weg. Enthält eine Datei Resultate, zählen ihre Meldungen nicht: Wer nur gemeldet ist, ist wohl nicht angetreten. Doppelte Meldungen auf denselben Lauf (der Splash Team Manager exportiert manche doppelt, mit anderer Zeit) werden nur einmal übernommen. Gehört eine Meldeliste zu einem vergangenen Wettkampf, sagt die Vorschau, dass keine Resultate drin sind.
 - **Ausschreibung** ohne Athleten: Nur der Wettkampf wird eingetragen, mit Datum, Ort, Bahnlänge und Meldeschluss.
 
-1. Datei wählen: `.lef` (XML) oder `.lxf` (dasselbe als ZIP, entpackt mit fflate). Die Datei wird nur im Browser gelesen, nichts wird hochgeladen.
+1. Datei wählen: `.lef` (XML) oder `.lxf` (dasselbe als ZIP, entpackt mit fflate), auch mit angehängtem `.zip`. Ob ZIP oder XML, erkennt die App am Inhalt. Die Datei wird nur im Browser gelesen, nichts wird hochgeladen.
 2. Athlet wählen: Die Datei enthält alle Teilnehmenden. Name, Jahrgang und Verein stehen nur in der Auswahlliste und werden nicht gespeichert. Nach dem Speichern oder Abbrechen verwirft die App den ganzen Dateiinhalt.
 3. Vorschau prüfen und bestätigen.
 
@@ -141,7 +141,7 @@ Drei Arten von Dateien gehen:
 
 **Duplikate:** Gibt es schon einen Wettkampf mit gleichem Namen (ohne Gross/klein und Leerzeichen) und gleichem Startdatum, wird kein zweiter angelegt; die Läufe kommen dorthin. Ein Lauf mit gleicher Lage, Strecke, gleichem Status und gleicher Endzeit gilt als schon erfasst, darum lässt sich eine Datei auch zweimal einlesen. Ein geplanter Lauf derselben Strecke bekommt Resultat und Zwischenzeiten, die Zielzeit bleibt. Eine Meldung für eine schon erfasste Strecke gilt als erfasst. Dauert der Wettkampf in der Datei länger als erfasst, wird das Enddatum verschoben; fehlt der Meldeschluss, wird er ergänzt. Gespeichert wird in einer Transaktion: alles oder nichts.
 
-**Getestet** ist der Import mit selbst geschriebenen Beispieldateien ([Resultate](src/lib/fixtures/beispiel.lef), [Meldeliste](src/lib/fixtures/meldeliste.lef); die Ausschreibung ist die Meldeliste ohne Vereine). Echte Dateien von Dritten kommen nicht ins öffentliche Repo. Offen: mit 3 bis 5 echten Lenex-Dateien eigener Wettkämpfe lokal prüfen (siehe [docs/01-datenquellen-bericht.md](docs/01-datenquellen-bericht.md), Abschnitt 5).
+**Getestet** ist der Import mit selbst geschriebenen Beispieldateien ([Resultate](src/lib/fixtures/beispiel.lef), [Meldeliste](src/lib/fixtures/meldeliste.lef); die Ausschreibung ist die Meldeliste ohne Vereine). Am 10.10.2026 zusätzlich lokal mit drei echten Meldelisten aus dem Splash Team Manager 10 geprüft (Langbahn, 4 bis 26 Athleten); die Dateien bleiben ausserhalb des Repos. Echte Dateien von Dritten kommen nicht ins öffentliche Repo. Offen: mit 3 bis 5 echten Lenex-Dateien eigener Wettkämpfe lokal prüfen (siehe [docs/01-datenquellen-bericht.md](docs/01-datenquellen-bericht.md), Abschnitt 5).
 
 ## Bekannte Grenzen von Phase 1
 

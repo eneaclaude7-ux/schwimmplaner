@@ -190,11 +190,13 @@ describe('Meldelisten und Ausschreibungen', () => {
 		]);
 	});
 
-	it('überspringt abgemeldete, abgelehnte und unbekannte Strecken', () => {
+	it('überspringt abgemeldete, abgelehnte, doppelte und unbekannte Strecken', () => {
 		expect(max.skipped).toEqual([
 			{ label: '25 m Delfin', reason: 'Diese Strecke kennt der Schwimmplaner nicht.' },
 			{ label: '100 m Rücken', reason: 'Die Meldung wurde zurückgezogen.' },
-			{ label: '200 m Brust', reason: 'Die Meldung wurde abgelehnt.' }
+			{ label: '200 m Brust', reason: 'Die Meldung wurde abgelehnt.' },
+			{ label: '50 Beine Delfin', reason: 'Diese Lage kennt der Schwimmplaner nicht.' },
+			{ label: '100 m Brust', reason: 'Doppelte Meldung, nur einmal übernommen.' }
 		]);
 	});
 

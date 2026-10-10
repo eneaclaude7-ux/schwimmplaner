@@ -3,7 +3,7 @@
 	import { liveQuery } from 'dexie';
 	import { resolve } from '$app/paths';
 	import { db } from '#lib/db.ts';
-	import { formatDate, formatDateRange } from '#lib/dates.ts';
+	import { formatDate, formatDateRange, todayIso } from '#lib/dates.ts';
 	import {
 		ACTION_LABEL,
 		planImport,
@@ -154,7 +154,7 @@
 </script>
 
 <p>
-	Lenex-Dateien (.lxf oder .lef) enthalten die Resultate eines ganzen Wettkampfs, mit
+	Lenex-Dateien (.lxf, .lef, auch als .zip) enthalten die Resultate eines ganzen Wettkampfs, mit
 	Zwischenzeiten, wenn sie elektronisch gemessen wurden. Du bekommst sie oft beim Veranstalter oder
 	beim Trainer. Auch Meldelisten und Ausschreibungen gehen: Gemeldete Läufe kommen als geplant in
 	den Kalender, eine Ausschreibung trägt den Wettkampf mit Meldeschluss ein.
@@ -170,7 +170,7 @@
 	<input
 		id="lenex-file"
 		type="file"
-		accept=".lxf,.lef"
+		accept=".lxf,.lef,.zip"
 		bind:this={fileInput}
 		onchange={read}
 		aria-describedby={error ? 'lenex-error' : undefined}
@@ -253,6 +253,12 @@
 				Der Wettkampf wird neu angelegt.
 			{/if}
 		</p>
+		{#if meet.kind === 'entries' && (plan.competition.endDate ?? plan.competition.startDate) < todayIso()}
+			<p class="warning">
+				Dieser Wettkampf ist vorbei, und die Datei enthält nur Meldungen, keine Resultate. Die Läufe
+				kommen als geplant dazu; die Zeiten kannst du danach beim Wettkampf eintragen.
+			</p>
+		{/if}
 
 		{#if plan.races.length > 0}
 			<div class="table-wrap">
