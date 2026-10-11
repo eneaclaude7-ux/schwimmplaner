@@ -41,4 +41,14 @@ Es gibt keine Tracking-SDKs, keine CDNs und keine externen Schriften. Alles wird
   - als PWA installieren,
   - `navigator.storage.persist()` aufrufen (Browser um dauerhaften Speicher bitten),
   - Export und Import als JSON ab Tag 1.
+  - Erinnerung ans Backup auf der Übersicht, sobald eine Änderung 7 Tage ungesichert ist.
 - **Vertragspartner:** Vor Phase 2 klären, wer Vertragspartner für Hosting und Zahlungen ist.
+
+## Entscheid: PWA statt Store-App (11.10.2026)
+
+Geprüft wurde Expo (React Native) für eine App im App Store und bei Google Play. Ergebnis: Die App bleibt eine PWA.
+
+- **Expo** hiesse die ganze Oberfläche neu schreiben, dazu Datenbank (IndexedDB zu SQLite), Diagramme und Teile des Lenex-Imports. Übernehmen liesse sich nur die Rechenlogik in TypeScript. Stark ist Expo beim Bauen ohne Mac (EAS Build in der Cloud).
+- **Falls später doch eine Store-App:** Capacitor statt Expo. Capacitor verpackt die bestehende statische App fast unverändert. Für iOS braucht es einen Mac oder einen Cloud-Build.
+- **Voraussetzungen für jeden Store:** Apple Developer Program 99 USD pro Jahr, Google Play 25 USD einmalig. Beide verlangen Volljährigkeit; bei Minderjährigen meldet sich ein Elternteil an. Apple lehnt reine Website-Hüllen ab (Richtlinie 4.2).
+- **Wann neu prüfen:** wenn Nutzer nach einer Store-App fragen, frühestens nach einer Saison eigener Nutzung.
